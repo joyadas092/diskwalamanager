@@ -24,7 +24,7 @@ MASTER_CHANNEL_ID = -1003324660206
 CHILD_CHANNEL_IDS = [
     -1003440216101,
     -1002993106861,
-    -1002406969774
+    -1002987263607
 ]
 # ================== RUNTIME STATE ==================
 START_FROM_MSG_ID = None
@@ -42,10 +42,12 @@ app = Client(
 
 bot = Quart(__name__)
 
+
 @bot.route('/')
 async def hello():
     return 'Bot Running'
-    
+
+
 # ================== COMMAND HANDLERS ==================
 @app.on_message(filters.command("start") & filters.private)
 async def start(client, message):
@@ -56,6 +58,7 @@ async def start(client, message):
         message_ids=3,
 
     )
+
 
 @app.on_message(filters.regex("startfrom"))
 async def start_from_handler(client, message):
@@ -101,11 +104,13 @@ async def stop_handler(client, message):
     IS_RUNNING = False
     await message.reply("🛑 Bot stopped")
 
+
 def extract_diskwala_links(text: str) -> list[str]:
     return re.findall(
         r"https?://(?:www\.)?diskwala\.com/\S+",
         text
     )
+
 
 Promo = InlineKeyboardMarkup(
     [[
@@ -115,6 +120,7 @@ Promo = InlineKeyboardMarkup(
         )
     ]]
 )
+
 
 # ================== CORE LOOP ==================
 
@@ -193,9 +199,6 @@ https://t.me/+HQmvZytWmeI2YWM1
     print("Loop stopped")
 
 
-
-
-
 # ================== QUART SETUP ==================
 
 @bot.before_serving
@@ -210,6 +213,7 @@ async def after_serving():
 
 if __name__ == '__main__':
     loop = asyncio.get_event_loop()
-    loop.create_task(bot.run_task(host='0.0.0.0', port=8080))
+    loop.create_task(bot.run_task(host='0.0.0.0', port=8090))
     loop.run_forever()
+
 
