@@ -213,7 +213,8 @@ async def after_serving():
 
 if __name__ == '__main__':
     loop = asyncio.get_event_loop()
-    loop.create_task(bot.run_task(host='0.0.0.0', port=8090))
+    loop.create_task(bot.run_task(host='0.0.0.0', port=8080))
     loop.run_forever()
+
 
 
