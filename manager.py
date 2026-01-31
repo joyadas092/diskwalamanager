@@ -1,9 +1,14 @@
 import os
 import re
 import asyncio
+import threading
+from flask import Flask
+
 from telethon import TelegramClient, events, Button
 from telethon.errors import FloodWaitError
 from dotenv import load_dotenv
+
+# ---------------- LOAD ENV ----------------
 
 load_dotenv()
 
@@ -11,12 +16,15 @@ API_ID = int(os.getenv("API_ID"))
 API_HASH = os.getenv("API_HASH")
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 
+# ---------------- CONFIG ----------------
+
 MASTER_CHANNEL_ID = -1003324660206
 
 CHILD_CHANNEL_IDS = [
     -1003440216101,
     -1003509258780,
-    -1003610491355
+    -1003610491355,
+    -1003588263421
 ]
 
 # ---------------- RUNTIME STATE ----------------
@@ -25,16 +33,30 @@ START_FROM_MSG_ID = None
 INTERVAL_MINUTES = None
 IS_RUNNING = False
 
-# ---------------- CLIENT ----------------
+# ---------------- TELETHON CLIENT ----------------
 
 bot = TelegramClient("diskwala_bot", API_ID, API_HASH).start(
     bot_token=BOT_TOKEN
 )
 
+# ---------------- FLASK KEEP ALIVE ----------------
+
+app = Flask(__name__)
+
+@app.route("/")
+def home():
+    return "Diskwala Bot Running", 200
+
+def run_web():
+    app.run(host="0.0.0.0", port=8080)
+
 # ---------------- UTIL ----------------
 
 def extract_diskwala_links(text):
-    return re.findall(r"https?://(?:www\.)?diskwala\.com/\S+", text)
+    return re.findall(
+        r"https?://(?:www\.)?diskwala\.com/\S+",
+        text
+    )
 
 PROMO_BUTTON = Button.url(
     "Click here to See more 🤫",
@@ -68,7 +90,7 @@ async def run_cmd(event):
     global IS_RUNNING
 
     if not START_FROM_MSG_ID or not INTERVAL_MINUTES:
-        await event.respond("❌ Set /startfrom and /interval first")
+        await event.respond("❌ Set /startfrom_<id> and /interval_<min> first")
         return
 
     if IS_RUNNING:
@@ -94,6 +116,7 @@ async def copy_loop():
     current_msg_id = START_FROM_MSG_ID
 
     while IS_RUNNING:
+
         try:
             msg = await bot.get_messages(
                 MASTER_CHANNEL_ID,
@@ -119,7 +142,7 @@ async def copy_loop():
             new_text = f"""🎬 Vdo ** 🔗🔗🔗 👇यह रहा वीडियो लिंक 👇**
 {links_block}
 
-🤔 **How to Open Links 👇👇 see tutorial Video 👇🏻🤗**
+🤔 How to Open Links 👇👇 see tutorial Video 👇🏻🤗
 🤔 लिंक कैसे खोलें 👇👇 ट्यूटोरियल वीडियो देखें 👇🏻🤗
 https://t.me/diskhow/3
 
@@ -159,7 +182,12 @@ https://t.me/+HQmvZytWmeI2YWM1
 
     print("Loop stopped")
 
-# ---------------- RUN ----------------
+# ---------------- START EVERYTHING ----------------
 
-print("Telethon Diskwala bot running...")
-bot.run_until_disconnected()
+if __name__ == "__main__":
+
+    print("Starting Flask keep-alive server...")
+    threading.Thread(target=run_web).start()
+
+    print("Starting Telegram bot...")
+    bot.run_until_disconnected()
