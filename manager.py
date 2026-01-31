@@ -1,12 +1,9 @@
 import os
-import asyncio
 import re
-
-from pyrogram import Client, filters
-from pyrogram.errors import FloodWait, RPCError
+import asyncio
+from telethon import TelegramClient, events, Button
+from telethon.errors import FloodWaitError
 from dotenv import load_dotenv
-from quart import Quart
-from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 load_dotenv()
 
@@ -16,113 +13,79 @@ BOT_TOKEN = os.getenv("BOT_TOKEN")
 
 MASTER_CHANNEL_ID = -1003324660206
 
-# CHILD_CHANNEL_IDS = [
-#     -1003588263421,
-#     -1003551833177,
-#     -1003563364372
-# ]
 CHILD_CHANNEL_IDS = [
     -1003440216101,
-    -1002993106861,
-    -1002987263607
+    -1003509258780,
+    -1003610491355
 ]
-# ================== RUNTIME STATE ==================
+
+# ---------------- RUNTIME STATE ----------------
+
 START_FROM_MSG_ID = None
 INTERVAL_MINUTES = None
 IS_RUNNING = False
 
-# ===================================================
+# ---------------- CLIENT ----------------
 
-app = Client(
-    "my_bot",
-    api_id=API_ID,
-    api_hash=API_HASH,
+bot = TelegramClient("diskwala_bot", API_ID, API_HASH).start(
     bot_token=BOT_TOKEN
 )
 
-bot = Quart(__name__)
+# ---------------- UTIL ----------------
 
+def extract_diskwala_links(text):
+    return re.findall(r"https?://(?:www\.)?diskwala\.com/\S+", text)
 
-@bot.route('/')
-async def hello():
-    return 'Bot Running'
+PROMO_BUTTON = Button.url(
+    "Click here to See more 🤫",
+    "https://t.me/addlist/gu7nU3yNklJhMTc9"
+)
 
+# ---------------- COMMANDS ----------------
 
-# ================== COMMAND HANDLERS ==================
-@app.on_message(filters.command("start") & filters.private)
-async def start(client, message):
-    # await app.send_message(message.chat.id, "ahaann")
-    await app.forward_messages(
-        chat_id=message.chat.id,
-        from_chat_id=-1002482808575,
-        message_ids=3,
-
+@bot.on(events.NewMessage(pattern=r"^/start$"))
+async def start(event):
+    await bot.forward_messages(
+        event.chat_id,
+        3,
+        -1002482808575
     )
 
-
-@app.on_message(filters.regex("startfrom"))
-async def start_from_handler(client, message):
+@bot.on(events.NewMessage(pattern=r"^/startfrom_(\d+)$"))
+async def startfrom(event):
     global START_FROM_MSG_ID
-    try:
-        START_FROM_MSG_ID = int(message.text.split("_")[1])
-        await message.reply(f"✅ Start from message ID set to {START_FROM_MSG_ID}")
-    except:
-        await message.reply("❌ Invalid format. Use /startfrom_1999")
+    START_FROM_MSG_ID = int(event.pattern_match.group(1))
+    await event.respond(f"✅ Start from message ID set to {START_FROM_MSG_ID}")
 
-
-@app.on_message(filters.regex("interval"))
-async def interval_handler(client, message):
+@bot.on(events.NewMessage(pattern=r"^/interval_(\d+)$"))
+async def interval(event):
     global INTERVAL_MINUTES
-    try:
-        INTERVAL_MINUTES = int(message.text.split("_")[1])
-        print(INTERVAL_MINUTES)
-        await message.reply(f"⏱ Interval set to {INTERVAL_MINUTES} minutes")
-    except:
-        await message.reply("❌ Invalid format. Use /interval_20")
+    INTERVAL_MINUTES = int(event.pattern_match.group(1))
+    await event.respond(f"⏱ Interval set to {INTERVAL_MINUTES} minutes")
 
-
-@app.on_message(filters.command("run"))
-async def run_handler(client, message):
+@bot.on(events.NewMessage(pattern=r"^/run$"))
+async def run_cmd(event):
     global IS_RUNNING
 
     if not START_FROM_MSG_ID or not INTERVAL_MINUTES:
-        await message.reply("❌ Set /startfrom and /interval first")
+        await event.respond("❌ Set /startfrom and /interval first")
         return
 
     if IS_RUNNING:
-        await message.reply("⚠️ Bot already running")
+        await event.respond("⚠️ Bot already running")
         return
 
     IS_RUNNING = True
     asyncio.create_task(copy_loop())
-    await message.reply("🚀 Copy loop started")
+    await event.respond("🚀 Copy loop started")
 
-
-@app.on_message(filters.command("stopbot"))
-async def stop_handler(client, message):
+@bot.on(events.NewMessage(pattern=r"^/stopbot$"))
+async def stop_cmd(event):
     global IS_RUNNING
     IS_RUNNING = False
-    await message.reply("🛑 Bot stopped")
+    await event.respond("🛑 Bot stopped")
 
-
-def extract_diskwala_links(text: str) -> list[str]:
-    return re.findall(
-        r"https?://(?:www\.)?diskwala\.com/\S+",
-        text
-    )
-
-
-Promo = InlineKeyboardMarkup(
-    [[
-        InlineKeyboardButton(
-            "Click here to See more 🤫",
-            url="https://t.me/addlist/gu7nU3yNklJhMTc9"
-        )
-    ]]
-)
-
-
-# ================== CORE LOOP ==================
+# ---------------- CORE LOOP ----------------
 
 async def copy_loop():
     global IS_RUNNING, START_FROM_MSG_ID
@@ -132,10 +95,9 @@ async def copy_loop():
 
     while IS_RUNNING:
         try:
-            # Try to fetch single message by ID
-            msg = await app.get_messages(
-                chat_id=MASTER_CHANNEL_ID,
-                message_ids=current_msg_id
+            msg = await bot.get_messages(
+                MASTER_CHANNEL_ID,
+                ids=current_msg_id
             )
 
             if not msg:
@@ -154,67 +116,50 @@ async def copy_loop():
 
             links_block = "\n\n➡️".join(links)
 
-            new_text = f"""🎬 ** 🔗🔗🔗 :👇**
+            new_text = f"""🎬 Vdo ** 🔗🔗🔗 👇यह रहा वीडियो लिंक 👇**
 {links_block}
 
 🤔 **How to Open Links 👇👇 see tutorial Video 👇🏻🤗**
+🤔 लिंक कैसे खोलें 👇👇 ट्यूटोरियल वीडियो देखें 👇🏻🤗
 https://t.me/diskhow/3
 
 𝐉𝐨𝐢𝐧 this 𝐁𝐚𝐜𝐤𝐮𝐩 𝐂𝐡𝐚𝐧𝐧𝐞𝐥 💾 for All New trending Videos 👇🏻👇🏻
+इस बैकअप चैनल से जुड़ें 💾 सभी नए ट्रेंडिंग वीडियो पाने के लिए 👇🏻👇🏻
 https://t.me/+HQmvZytWmeI2YWM1
 """
 
-            target_channel = CHILD_CHANNEL_IDS[child_index]
+            target = CHILD_CHANNEL_IDS[child_index]
 
             if msg.media:
-                await msg.copy(
-                    chat_id=target_channel,
+                await bot.send_file(
+                    target,
+                    msg.media,
                     caption=new_text,
-                    reply_markup=Promo
+                    buttons=PROMO_BUTTON
                 )
             else:
-                await app.send_message(
-                    chat_id=target_channel,
-                    text=new_text,
-                    reply_markup=Promo
+                await bot.send_message(
+                    target,
+                    new_text,
+                    buttons=PROMO_BUTTON
                 )
 
-            print(f"Posted msg {current_msg_id} → {target_channel}")
+            print(f"Posted {current_msg_id} → {target}")
 
             child_index = (child_index + 1) % len(CHILD_CHANNEL_IDS)
             await asyncio.sleep(INTERVAL_MINUTES * 60)
 
-        except FloodWait as e:
-            await asyncio.sleep(e.value)
-
-        except RPCError:
-            # message not accessible / deleted / before bot joined
-            pass
+        except FloodWaitError as e:
+            await asyncio.sleep(e.seconds)
 
         except Exception as e:
-            print(f"Error on msg {current_msg_id}: {e}")
+            print(f"Error {current_msg_id}: {e}")
 
         current_msg_id += 1
 
     print("Loop stopped")
 
+# ---------------- RUN ----------------
 
-# ================== QUART SETUP ==================
-
-@bot.before_serving
-async def before_serving():
-    await app.start()
-
-
-@bot.after_serving
-async def after_serving():
-    await app.stop()
-
-
-if __name__ == '__main__':
-    loop = asyncio.get_event_loop()
-    loop.create_task(bot.run_task(host='0.0.0.0', port=8080))
-    loop.run_forever()
-
-
-
+print("Telethon Diskwala bot running...")
+bot.run_until_disconnected()
