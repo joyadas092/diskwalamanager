@@ -16,3 +16,4 @@ Quart
 unshortenit==0.4.0
 telethon
 dotenv
+flask
