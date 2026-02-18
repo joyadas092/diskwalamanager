@@ -147,7 +147,8 @@ https://t.me/diskhow/3
 
 **𝐉𝐨𝐢𝐧 this 𝐁𝐚𝐜𝐤𝐮𝐩 𝐂𝐡𝐚𝐧𝐧𝐞𝐥 💾 for All New trending Videos 👇🏻👇🏻**
 **इस बैकअप चैनल से जुड़ें 💾 सभी नए ट्रेंडिंग वीडियो पाने के लिए 👇🏻👇🏻**
-https://t.me/+HQmvZytWmeI2YWM1
+1. https://t.me/+PZ6YEPqLrWc1ZjA1
+2. https://t.me/+fMdHERS3IJ1hMDY1
 """
 
             target = CHILD_CHANNEL_IDS[child_index]
@@ -190,4 +191,5 @@ if __name__ == "__main__":
 
     print("Starting Telegram bot...")
     bot.run_until_disconnected()
+
 
