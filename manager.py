@@ -57,10 +57,10 @@ def extract_diskwala_links(text):
         text
     )
 
-PROMO_BUTTON = Button.url(
-    "Click here to See more 🤫",
-    "https://t.me/addlist/gu7nU3yNklJhMTc9"
-)
+PROMO_BUTTON = [
+    [Button.url("Join & See more 🤫", "https://t.me/addlist/gu7nU3yNklJhMTc9")],
+    [Button.url("Visit Profile 🍒", "https://www.diskwala.com/creator/688656fa7fa9a8d13b7c6fcd")]
+]
 
 # ---------------- COMMANDS ----------------
 
@@ -138,15 +138,14 @@ async def copy_loop():
 
             links_block = "\n\n➡️".join(links)
 
-            new_text = f"""🎬 Vdo ** 🔗🔗🔗 👇यह रहा वीडियो लिंक 👇**
+            new_text = f"""🎬 Vdo 😍** 🔗🔗यह रहा वीडियो लिंक 👇**
+            
 {links_block}
 
-**🤔 How to Open Links 👇👇 see tutorial Video 👇🏻🤗**
-**🤔 लिंक कैसे खोलें 👇👇 ट्यूटोरियल वीडियो देखें 👇🏻🤗**
+**🤔 How to Open Links see tutorial 👇🏻🤗| लिंक कैसे खोलें 👇**
 https://t.me/diskhow/3
 
-**𝐉𝐨𝐢𝐧 this 𝐁𝐚𝐜𝐤𝐮𝐩 𝐂𝐡𝐚𝐧𝐧𝐞𝐥 💾 for All New trending Videos 👇🏻👇🏻**
-**इस बैकअप चैनल से जुड़ें 💾 सभी नए ट्रेंडिंग वीडियो पाने के लिए 👇🏻👇🏻**
+**Must 𝐉𝐨𝐢𝐧 this 𝐁𝐚𝐜𝐤𝐮𝐩 𝐂𝐡𝐚𝐧𝐧𝐞𝐥 💾👇🏻 | ज़रूर इस बैकअप चैनल से जुड़े  💾**
 1. https://t.me/+PZ6YEPqLrWc1ZjA1
 2. https://t.me/+fMdHERS3IJ1hMDY1
 """
@@ -191,5 +190,6 @@ if __name__ == "__main__":
 
     print("Starting Telegram bot...")
     bot.run_until_disconnected()
+
 
 
