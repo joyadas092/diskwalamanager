@@ -31,7 +31,7 @@ CHILD_CHANNEL_IDS = [
 START_FROM_MSG_ID = None
 INTERVAL_MINUTES = None
 IS_RUNNING = False
-
+POST_QTY = 1
 # ---------------- TELETHON CLIENT ----------------
 
 bot = TelegramClient("diskwala_bot", API_ID, API_HASH).start(
@@ -84,6 +84,12 @@ async def interval(event):
     INTERVAL_MINUTES = int(event.pattern_match.group(1))
     await event.respond(f"⏱ Interval set to {INTERVAL_MINUTES} minutes")
 
+@bot.on(events.NewMessage(pattern=r"^/postqty_(\d+)$"))
+async def postqty(event):
+    global POST_QTY
+    POST_QTY = int(event.pattern_match.group(1))
+    await event.respond(f"📦 Post quantity per channel set to {POST_QTY}")
+
 @bot.on(events.NewMessage(pattern=r"^/run$"))
 async def run_cmd(event):
     global IS_RUNNING
@@ -109,37 +115,49 @@ async def stop_cmd(event):
 # ---------------- CORE LOOP ----------------
 
 async def copy_loop():
-    global IS_RUNNING, START_FROM_MSG_ID
+    global IS_RUNNING, START_FROM_MSG_ID, POST_QTY
 
     child_index = 0
     current_msg_id = START_FROM_MSG_ID
 
     while IS_RUNNING:
 
-        try:
-            msg = await bot.get_messages(
-                MASTER_CHANNEL_ID,
-                ids=current_msg_id
-            )
+        target = CHILD_CHANNEL_IDS[child_index]
+        sent_count = 0
 
-            if not msg:
-                current_msg_id += 1
-                continue
+        # 🔥 Send multiple posts in same channel
+        while sent_count < POST_QTY and IS_RUNNING:
 
-            text = msg.text or msg.caption
-            if not text:
-                current_msg_id += 1
-                continue
+            try:
+                msg = await bot.get_messages(
+                    MASTER_CHANNEL_ID,
+                    ids=current_msg_id
+                )
 
-            links = extract_diskwala_links(text)
-            if not links:
-                current_msg_id += 1
-                continue
+                # ❌ No message
+                if not msg:
+                    current_msg_id += 1
+                    continue
 
-            links_block = "\n\n➡️".join(links)
+                text = msg.text or msg.caption
 
-            new_text = f"""🎬 Vdo 😍** 🔗🔗यह रहा वीडियो लिंक 👇**
-            
+                # ❌ No text/caption
+                if not text:
+                    current_msg_id += 1
+                    continue
+
+                links = extract_diskwala_links(text)
+
+                # ❌ No diskwala link
+                if not links:
+                    current_msg_id += 1
+                    continue
+
+                # ✅ Build formatted message
+                links_block = "\n\n➡️".join(links)
+
+                new_text = f"""🎬 Vdo 😍** 🔗🔗यह रहा वीडियो लिंक 👇**
+
 {links_block}
 
 **🤔 How to Open Links see tutorial 👇🏻🤗| लिंक कैसे खोलें 👇**
@@ -150,37 +168,46 @@ https://t.me/diskhow/3
 2. https://t.me/+fMdHERS3IJ1hMDY1
 """
 
-            target = CHILD_CHANNEL_IDS[child_index]
+                # ✅ Send message
+                if msg.media:
+                    await bot.send_file(
+                        target,
+                        msg.media,
+                        caption=new_text,
+                        buttons=PROMO_BUTTON
+                    )
+                else:
+                    await bot.send_message(
+                        target,
+                        new_text,
+                        buttons=PROMO_BUTTON
+                    )
 
-            if msg.media:
-                await bot.send_file(
-                    target,
-                    msg.media,
-                    caption=new_text,
-                    buttons=PROMO_BUTTON
-                )
-            else:
-                await bot.send_message(
-                    target,
-                    new_text,
-                    buttons=PROMO_BUTTON
-                )
+                print(f"Posted {current_msg_id} → {target}")
 
-            print(f"Posted {current_msg_id} → {target}")
+                sent_count += 1
+                current_msg_id += 1
 
-            child_index = (child_index + 1) % len(CHILD_CHANNEL_IDS)
-            await asyncio.sleep(INTERVAL_MINUTES * 60)
+                # 🔥 Small delay to avoid flood
+                await asyncio.sleep(1)
 
-        except FloodWaitError as e:
-            await asyncio.sleep(e.seconds)
+            except FloodWaitError as e:
+                await asyncio.sleep(e.seconds)
 
-        except Exception as e:
-            print(f"Error {current_msg_id}: {e}")
+            except Exception as e:
+                print(f"Error {current_msg_id}: {e}")
+                current_msg_id += 1
 
-        current_msg_id += 1
+        # 🔥 Move to next channel AFTER batch
+        child_index += 1
+        if child_index >= len(CHILD_CHANNEL_IDS):
+            child_index = 0
+
+        print(f"⏱ Waiting {INTERVAL_MINUTES} minutes before next channel...")
+
+        await asyncio.sleep(INTERVAL_MINUTES * 60)
 
     print("Loop stopped")
-
 # ---------------- START EVERYTHING ----------------
 
 if __name__ == "__main__":
