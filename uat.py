@@ -257,8 +257,8 @@ https://t.me/diskhow/3
 𝑷𝒍𝒆𝒂𝒔𝒆 𝑱𝒐𝒊𝒏 𝑩𝒆𝒍𝒐𝒘 𝑪𝒉𝒂𝒏𝒏𝒆𝒍𝒔 𝒂𝒔 𝒃𝒂𝒄𝒌𝒖𝒑
 🥹👇🏻👇🏻
 
-1. t.me/+gvA2-ktq5oQ2ZDZi
-2. t.me/+V1NC04vP1hYwMzQy
+1. https://t.me/+7rRZeo0BQcZlYjAy
+2. https://t.me/+gvA2-ktq5oQ2ZDZi
 """
 
                 if msg.media:
