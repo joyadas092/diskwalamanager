@@ -24,7 +24,6 @@ CHILD_CHANNEL_IDS = [
     -1003509258780,
     -1003610491355,
     -1003471521632,
-    -1002659115637
 ]
 
 # Terabox
@@ -84,9 +83,6 @@ TB_BUTTONS = [
 async def start(event):
     txt='''
 𝑱𝒐𝒊𝒏 𝑭𝒐𝒓 𝑫𝒊𝒔𝒌𝒘𝒂𝒍𝒂 𝑽𝒊𝒅𝒆𝒐𝒔 ⏬⏬
-https://t.me/addlist/gu7nU3yNklJhMTc9
-
-𝑱𝒐𝒊𝒏 𝑭𝒐𝒓 𝑻𝒆𝒓𝒂𝒃𝒐𝒙 𝑽𝒊𝒅𝒆𝒐𝒔 ⬇️⬇️
 https://t.me/addlist/gu7nU3yNklJhMTc9
     '''
     await event.respond(txt)
@@ -251,7 +247,7 @@ async def copy_loop_dw():
 {links_block}
 
 🤔 𝙃𝙤𝙬 𝙩𝙤 𝙊𝙥𝙚𝙣 𝙑𝙞𝙙𝙚𝙤 | लिंक कैसे खोलें 👇𝙨𝙚𝙚 𝙩𝙪𝙩𝙤𝙧𝙞𝙖𝙡 👇🏻🤗
-https://t.me/diskhow/3
+https://t.me/howdisk/2
 
 𝑷𝒍𝒆𝒂𝒔𝒆 𝑱𝒐𝒊𝒏 𝑩𝒆𝒍𝒐𝒘 𝑪𝒉𝒂𝒏𝒏𝒆𝒍𝒔 𝒂𝒔 𝒃𝒂𝒄𝒌𝒖𝒑
 🥹👇🏻👇🏻
