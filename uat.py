@@ -249,11 +249,8 @@ async def copy_loop_dw():
 🤔 𝙃𝙤𝙬 𝙩𝙤 𝙊𝙥𝙚𝙣 𝙑𝙞𝙙𝙚𝙤 | लिंक कैसे खोलें 👇𝙨𝙚𝙚 𝙩𝙪𝙩𝙤𝙧𝙞𝙖𝙡 👇🏻🤗
 https://t.me/howdisk/2
 
-𝑷𝒍𝒆𝒂𝒔𝒆 𝑱𝒐𝒊𝒏 𝑩𝒆𝒍𝒐𝒘 𝑪𝒉𝒂𝒏𝒏𝒆𝒍𝒔 𝒂𝒔 𝒃𝒂𝒄𝒌𝒖𝒑
-🥹👇🏻👇🏻
-
-1. https://t.me/+izgCF5xr9MkyMTQ1
-2. https://t.me/+Ys9iGWzqk-BjZWJl
+Click below to see All 🥵 channels
+t.me/Viral_diskwala_bot?start=1
 """
 
                 if msg.media:
