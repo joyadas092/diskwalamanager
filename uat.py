@@ -20,6 +20,8 @@ BOT_TOKEN = os.getenv("BOT_TOKEN")
 # Diskwala
 DISKWALA_SOURCE_CHANNEL = -1003324660206
 CHILD_CHANNEL_IDS = [
+    -1003662286694,
+    -1003906114728,
     -1003440216101,
     -1003509258780,
     -1003610491355,
@@ -251,6 +253,8 @@ https://t.me/howdisk/2
 
 Click below to see All 🥵 channels
 t.me/Viral_diskwala_bot?start=1
+https://t.me/+izgCF5xr9MkyMTQ1
+https://t.me/+Ys9iGWzqk-BjZWJl
 """
 
                 if msg.media:
