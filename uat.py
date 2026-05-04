@@ -72,7 +72,7 @@ def extract_terabox_links(text):
 # ---------------- BUTTONS ----------------
 
 DW_BUTTONS = [
-    [Button.url("Join & See more 🤫", "https://t.me/addlist/gu7nU3yNklJhMTc9")]
+    [Button.url("Click and See more 🤫", "t.me/Viral_diskwala_bot?start=1")]
 ]
 
 TB_BUTTONS = [
@@ -251,10 +251,9 @@ async def copy_loop_dw():
 🤔 𝙃𝙤𝙬 𝙩𝙤 𝙊𝙥𝙚𝙣 𝙑𝙞𝙙𝙚𝙤 | लिंक कैसे खोलें 👇𝙨𝙚𝙚 𝙩𝙪𝙩𝙤𝙧𝙞𝙖𝙡 👇🏻🤗
 https://t.me/howdisk/2
 
-Click below to see All 🥵 channels
-t.me/Viral_diskwala_bot?start=1
-https://t.me/+izgCF5xr9MkyMTQ1
-https://t.me/+Ys9iGWzqk-BjZWJl
+𝑷𝒍𝒆𝒂𝒔𝒆 𝑱𝒐𝒊𝒏 𝑩𝒆𝒍𝒐𝒘 Backup 𝑪𝒉𝒂𝒏𝒏𝒆𝒍𝒔 Must 🙏
+1. https://t.me/+izgCF5xr9MkyMTQ1
+2. https://t.me/+Ys9iGWzqk-BjZWJl
 """
 
                 if msg.media:
