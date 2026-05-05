@@ -20,8 +20,8 @@ BOT_TOKEN = os.getenv("BOT_TOKEN")
 # Diskwala
 DISKWALA_SOURCE_CHANNEL = -1003324660206
 CHILD_CHANNEL_IDS = [
+    -1003650465824,
     -1003662286694,
-    -1003906114728,
     -1003440216101,
     -1003509258780,
     -1003610491355,
@@ -72,7 +72,7 @@ def extract_terabox_links(text):
 # ---------------- BUTTONS ----------------
 
 DW_BUTTONS = [
-    [Button.url("Click and See more 🤫", "t.me/Viral_diskwala_bot?start=1")]
+    [Button.url("Join & See more 🤫", "t.me/Viral_diskwala_bot?start=1")]
 ]
 
 TB_BUTTONS = [
@@ -252,7 +252,7 @@ async def copy_loop_dw():
 https://t.me/howdisk/2
 
 𝑷𝒍𝒆𝒂𝒔𝒆 𝑱𝒐𝒊𝒏 𝑩𝒆𝒍𝒐𝒘 Backup 𝑪𝒉𝒂𝒏𝒏𝒆𝒍𝒔 Must 🙏
-1. https://t.me/+izgCF5xr9MkyMTQ1
+1. https://t.me/+YFWEDK59DbowODg1
 2. https://t.me/+Ys9iGWzqk-BjZWJl
 """
 
