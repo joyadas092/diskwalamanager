@@ -5,7 +5,13 @@ import threading
 from flask import Flask
 
 from telethon import TelegramClient, events, Button
-from telethon.errors import FloodWaitError
+from telethon.errors import (
+    FloodWaitError,
+    PeerIdInvalidError,
+    ChannelPrivateError,
+    ChatWriteForbiddenError,
+)
+from telethon.sessions import StringSession
 from dotenv import load_dotenv
 
 # ---------------- LOAD ENV ----------------
@@ -15,15 +21,19 @@ load_dotenv()
 API_ID = int(os.getenv("API_ID"))
 API_HASH = os.getenv("API_HASH")
 BOT_TOKEN = os.getenv("BOT_TOKEN")
+SESSION_STRING = os.getenv("SESSION_STRING", "").strip()
 
 # ---------------- CONFIG ----------------
 
 MASTER_CHANNEL_ID = -1003324660206
 
 CHILD_CHANNEL_IDS = [
+    -1003925918191,
+    -1003662286694,
     -1003440216101,
     -1003509258780,
-    -1003610491355
+    -1003610491355,
+    -1003471521632,
 ]
 
 # ---------------- RUNTIME STATE ----------------
@@ -32,11 +42,11 @@ START_FROM_MSG_ID = None
 INTERVAL_MINUTES = None
 IS_RUNNING = False
 POST_QTY = 1
+LOG_USER_ID = 6796879431
 # ---------------- TELETHON CLIENT ----------------
 
-bot = TelegramClient("diskwala_bot", API_ID, API_HASH).start(
-    bot_token=BOT_TOKEN
-)
+session_obj = StringSession(SESSION_STRING) if SESSION_STRING else "diskwala_bot"
+bot = TelegramClient(session_obj, API_ID, API_HASH).start(bot_token=BOT_TOKEN)
 
 # ---------------- FLASK KEEP ALIVE ----------------
 
@@ -58,19 +68,33 @@ def extract_diskwala_links(text):
     )
 
 PROMO_BUTTON = [
-    [Button.url("Join & See more 🤫", "https://t.me/addlist/gu7nU3yNklJhMTc9")],
-    [Button.url("Visit Profile 🍒", "https://www.diskwala.com/creator/688656fa7fa9a8d13b7c6fcd")]
+    [Button.url("Join & See more 🤫", "t.me/Viral_diskwala_bot?start=1")]
 ]
+
+
+async def report_issue(issue_text):
+    """Send runtime errors to owner without crashing loop."""
+    try:
+        await bot.send_message(LOG_USER_ID, issue_text)
+    except Exception as report_error:
+        print(f"Failed to send issue log: {report_error}")
 
 # ---------------- COMMANDS ----------------
 
 @bot.on(events.NewMessage(pattern=r"^/start$"))
 async def start(event):
-    await bot.forward_messages(
-        event.chat_id,
-        3,
-        -1002482808575
-    )
+    # await bot.forward_messages(
+    #     event.chat_id,
+    #     3,
+    #     -1002482808575
+    # )
+    txt = '''
+    𝑱𝒐𝒊𝒏 𝑭𝒐𝒓 𝑫𝒊𝒔𝒌𝒘𝒂𝒍𝒂 𝑽𝒊𝒅𝒆𝒐𝒔 ⏬⏬
+    
+    https://t.me/viral_diskwala_bot
+        '''
+    await event.respond(txt)
+
 
 @bot.on(events.NewMessage(pattern=r"^/startfrom_(\d+)$"))
 async def startfrom(event):
@@ -119,10 +143,18 @@ async def copy_loop():
 
     child_index = 0
     current_msg_id = START_FROM_MSG_ID
+    disabled_channels = set()
 
     while IS_RUNNING:
 
         target = CHILD_CHANNEL_IDS[child_index]
+        if target in disabled_channels:
+            child_index += 1
+            if child_index >= len(CHILD_CHANNEL_IDS):
+                child_index = 0
+            await asyncio.sleep(1)
+            continue
+
         sent_count = 0
 
         # 🔥 Send multiple posts in same channel
@@ -161,11 +193,11 @@ async def copy_loop():
 {links_block}
 
 **🤔 How to Open Links see tutorial 👇🏻🤗| लिंक कैसे खोलें 👇**
-https://t.me/diskhow/3
+https://t.me/howdisk/2
 
-**Must 𝐉𝐨𝐢𝐧 this 𝐁𝐚𝐜𝐤𝐮𝐩 𝐂𝐡𝐚𝐧𝐧𝐞𝐥 💾👇🏻 | ज़रूर इस बैकअप चैनल से जुड़े  💾**
-1. https://t.me/+PZ6YEPqLrWc1ZjA1
-2. https://t.me/+fMdHERS3IJ1hMDY1
+𝑷𝒍𝒆𝒂𝒔𝒆 𝑱𝒐𝒊𝒏 𝑩𝒆𝒍𝒐𝒘 Backup 𝑪𝒉𝒂𝒏𝒏𝒆𝒍𝒔 Must 🙏
+1. https://t.me/+E5TOi5ci6ZljY2Q9
+2. https://t.me/+P-MVSzKF3hsxMjA1
 """
 
                 # ✅ Send message
@@ -194,14 +226,34 @@ https://t.me/diskhow/3
             except FloodWaitError as e:
                 await asyncio.sleep(e.seconds)
 
+            except (PeerIdInvalidError, ChannelPrivateError, ChatWriteForbiddenError) as e:
+                disabled_channels.add(target)
+                await report_issue(
+                    f"❌ Channel disabled/skipped: `{target}`\n"
+                    f"Reason: {type(e).__name__}: {e}"
+                )
+                print(f"Channel skipped {target}: {e}")
+                break
+
             except Exception as e:
                 print(f"Error {current_msg_id}: {e}")
+                await report_issue(
+                    f"⚠️ Error on msg `{current_msg_id}` to `{target}`\n"
+                    f"{type(e).__name__}: {e}"
+                )
                 current_msg_id += 1
 
         # 🔥 Move to next channel AFTER batch
         child_index += 1
         if child_index >= len(CHILD_CHANNEL_IDS):
             child_index = 0
+
+        if len(disabled_channels) == len(CHILD_CHANNEL_IDS):
+            await report_issue(
+                "🛑 All child channels are disabled/private/unwritable. Stopping copy loop."
+            )
+            IS_RUNNING = False
+            break
 
         print(f"⏱ Waiting {INTERVAL_MINUTES} minutes before next channel...")
 

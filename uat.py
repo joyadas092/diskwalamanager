@@ -5,7 +5,13 @@ import threading
 from flask import Flask
 
 from telethon import TelegramClient, events, Button
-from telethon.errors import FloodWaitError
+from telethon.errors import (
+    FloodWaitError,
+    PeerIdInvalidError,
+    ChannelPrivateError,
+    ChatWriteForbiddenError,
+)
+from telethon.sessions import StringSession
 from dotenv import load_dotenv
 
 # ---------------- LOAD ENV ----------------
@@ -14,13 +20,14 @@ load_dotenv()
 API_ID = int(os.getenv("API_ID"))
 API_HASH = os.getenv("API_HASH")
 BOT_TOKEN = os.getenv("BOT_TOKEN")
+SESSION_STRING = os.getenv("SESSION_STRING", "").strip()
 
 # ---------------- CONFIG ----------------
 
 # Diskwala
 DISKWALA_SOURCE_CHANNEL = -1003324660206
 CHILD_CHANNEL_IDS = [
-    -1003650465824,
+    -1003925918191,
     -1003662286694,
     -1003440216101,
     -1003509258780,
@@ -45,10 +52,12 @@ TB_RUNNING = False
 TB_START_ID = None
 TB_INTERVAL = None
 TB_POST_QTY = 1
+LOG_USER_ID = 6796879431
 
 # ---------------- CLIENT ----------------
 
-bot = TelegramClient("manager_bot", API_ID, API_HASH).start(bot_token=BOT_TOKEN)
+session_obj = StringSession(SESSION_STRING) if SESSION_STRING else "manager_bot"
+bot = TelegramClient(session_obj, API_ID, API_HASH).start(bot_token=BOT_TOKEN)
 
 # ---------------- FLASK ----------------
 
@@ -62,7 +71,50 @@ def run_web():
     app.run(host="0.0.0.0", port=8080)
 
 # ---------------- UTIL ----------------
+async def report_issue(issue_text):
+    try:
+        await bot.send_message(LOG_USER_ID, issue_text)
+    except Exception as report_error:
+        print(f"Failed to send issue log: {report_error}")
 
+
+async def safe_send(target, msg, text, buttons):
+    try:
+        if msg.media:
+            await bot.send_file(
+                target,
+                msg.media,
+                caption=text,
+                buttons=buttons
+            )
+        else:
+            await bot.send_message(
+                target,
+                text,
+                buttons=buttons
+            )
+
+        return True
+
+    except FloodWaitError as e:
+        print(f"FloodWait: {e.seconds}s")
+        await asyncio.sleep(e.seconds)
+        return False
+
+    except (PeerIdInvalidError, ChannelPrivateError, ChatWriteForbiddenError) as e:
+        await report_issue(
+            f"❌ Channel disabled/skipped: `{target}`\n"
+            f"Reason: {type(e).__name__}: {e}"
+        )
+        print(f"❌ Channel failed {target}: {e}")
+        return False
+
+    except Exception as e:
+        print(f"❌ Channel failed {target}: {e}")
+        await report_issue(
+            f"⚠️ Send error to `{target}`\n{type(e).__name__}: {e}"
+        )
+        return False
 def extract_diskwala_links(text):
     return re.findall(r"https?://(?:www\.)?diskwala\.com/\S+", text)
 
@@ -85,7 +137,7 @@ TB_BUTTONS = [
 async def start(event):
     txt='''
 𝑱𝒐𝒊𝒏 𝑭𝒐𝒓 𝑫𝒊𝒔𝒌𝒘𝒂𝒍𝒂 𝑽𝒊𝒅𝒆𝒐𝒔 ⏬⏬
-https://t.me/addlist/gu7nU3yNklJhMTc9
+https://t.me/viral_diskwala_bot
     '''
     await event.respond(txt)
 
@@ -169,6 +221,9 @@ async def run_dw(event):
     if not DW_START_ID or not DW_INTERVAL:
         await event.respond("Set Diskwala config first")
         return
+    if not CHILD_CHANNEL_IDS:
+        await event.respond("No Diskwala child channels configured")
+        return
 
     if DW_RUNNING:
         await event.respond("Diskwala already running")
@@ -186,6 +241,9 @@ async def run_tb(event):
 
     if not TB_START_ID or not TB_INTERVAL:
         await event.respond("Set Terabox config first")
+        return
+    if not TERABOX_CHILD_CHANNELS:
+        await event.respond("No Terabox child channels configured")
         return
 
     if TB_RUNNING:
@@ -218,10 +276,20 @@ async def copy_loop_dw():
 
     child_index = 0
     current_msg_id = DW_START_ID
+    disabled_channels = set()
 
     while DW_RUNNING:
 
+        if len(disabled_channels) == len(CHILD_CHANNEL_IDS):
+            await report_issue("🛑 All Diskwala child channels disabled. Stopping DW loop.")
+            DW_RUNNING = False
+            break
+
         target = CHILD_CHANNEL_IDS[child_index]
+        if target in disabled_channels:
+            child_index = (child_index + 1) % len(CHILD_CHANNEL_IDS)
+            await asyncio.sleep(1)
+            continue
         sent = 0
 
         while sent < DW_POST_QTY and DW_RUNNING:
@@ -252,14 +320,20 @@ async def copy_loop_dw():
 https://t.me/howdisk/2
 
 𝑷𝒍𝒆𝒂𝒔𝒆 𝑱𝒐𝒊𝒏 𝑩𝒆𝒍𝒐𝒘 Backup 𝑪𝒉𝒂𝒏𝒏𝒆𝒍𝒔 Must 🙏
-1. https://t.me/+YFWEDK59DbowODg1
-2. https://t.me/+Ys9iGWzqk-BjZWJl
+1. https://t.me/+E5TOi5ci6ZljY2Q9
+2. https://t.me/+P-MVSzKF3hsxMjA1
 """
 
-                if msg.media:
-                    await bot.send_file(target, msg.media, caption=new_text, buttons=DW_BUTTONS)
-                else:
-                    await bot.send_message(target, new_text, buttons=DW_BUTTONS)
+                success = await safe_send(
+                    target,
+                    msg,
+                    new_text,
+                    DW_BUTTONS
+                )
+
+                if not success:
+                    disabled_channels.add(target)
+                    break
 
                 print(f"[DW] {current_msg_id} → {target}")
 
@@ -272,6 +346,10 @@ https://t.me/howdisk/2
 
             except Exception as e:
                 print(f"[DW ERROR] {current_msg_id}: {e}")
+                await report_issue(
+                    f"[DW ERROR] msg `{current_msg_id}` to `{target}`\n"
+                    f"{type(e).__name__}: {e}"
+                )
                 current_msg_id += 1
 
         child_index = (child_index + 1) % len(CHILD_CHANNEL_IDS)
@@ -284,10 +362,20 @@ async def copy_loop_tb():
 
     child_index = 0
     current_msg_id = TB_START_ID
+    disabled_channels = set()
 
     while TB_RUNNING:
 
+        if len(disabled_channels) == len(TERABOX_CHILD_CHANNELS):
+            await report_issue("🛑 All Terabox child channels disabled. Stopping TB loop.")
+            TB_RUNNING = False
+            break
+
         target = TERABOX_CHILD_CHANNELS[child_index]
+        if target in disabled_channels:
+            child_index = (child_index + 1) % len(TERABOX_CHILD_CHANNELS)
+            await asyncio.sleep(1)
+            continue
         sent = 0
 
         while sent < TB_POST_QTY and TB_RUNNING:
@@ -323,10 +411,16 @@ https://t.me/diskhow/5
 2. t.me/+gvA2-ktq5oQ2ZDZi
 """
 
-                if msg.media:
-                    await bot.send_file(target, msg.media, caption=new_text, buttons=TB_BUTTONS)
-                else:
-                    await bot.send_message(target, new_text, buttons=TB_BUTTONS)
+                success = await safe_send(
+                    target,
+                    msg,
+                    new_text,
+                    TB_BUTTONS
+                )
+
+                if not success:
+                    disabled_channels.add(target)
+                    break
 
                 print(f"[TB] {current_msg_id} → {target}")
 
@@ -339,6 +433,10 @@ https://t.me/diskhow/5
 
             except Exception as e:
                 print(f"[TB ERROR] {current_msg_id}: {e}")
+                await report_issue(
+                    f"[TB ERROR] msg `{current_msg_id}` to `{target}`\n"
+                    f"{type(e).__name__}: {e}"
+                )
                 current_msg_id += 1
 
         child_index = (child_index + 1) % len(TERABOX_CHILD_CHANNELS)
