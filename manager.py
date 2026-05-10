@@ -52,14 +52,14 @@ CHILD_CHANNEL_IDS_2 = [
 # -------- PIPELINE 1 --------
 
 START_FROM_MSG_ID = None
-INTERVAL_MINUTES = None
+INTERVAL_MINUTES = 30
 POST_QTY = 1
 IS_RUNNING = False
 
 # -------- PIPELINE 2 --------
 
 START_FROM_MSG_ID_2 = None
-INTERVAL_MINUTES_2 = None
+INTERVAL_MINUTES_2 = 30
 POST_QTY_2 = 1
 IS_RUNNING_2 = False
 
@@ -96,21 +96,34 @@ def extract_diskwala_links(text):
         text
     )
 
-PROMO_BUTTON = [
-    [Button.url("Join & See more 🤫", "t.me/Viral_diskwala_bot?start=1")],
-    [Button.url("TeraBox Downloader ⏬", "t.me/TerawalaRoBot")]
+MAIN_BUTTON = [
+    [Button.url(
+        "Join & See more 🤫",
+        "https://t.me/Viral_diskwala_bot?start=1"
+    )]
 ]
+
+TERABOX_BUTTON = [
+    [Button.url(
+        "TeraBox Downloader ⏬",
+        "https://t.me/TerawalaRoBot"
+    )]
+]
+
+BUTTON_COUNTER = 0
 
 # -------- FOOTERS --------
 
 FOOTER_1 = """
-𝑷𝒍𝒆𝒂𝒔𝒆 𝑱𝒐𝒊𝒏Backup 𝑪𝒉𝒂𝒏𝒏𝒆𝒍𝒔 Must 🙏
+𝑷𝒍𝒆𝒂𝒔𝒆 𝑱𝒐𝒊𝒏 Backup 𝑪𝒉𝒂𝒏𝒏𝒆𝒍𝒔 Must 🙏
+
 1. https://t.me/+E5TOi5ci6ZljY2Q9
 2. https://t.me/+P-MVSzKF3hsxMjA1
 """
 
 FOOTER_2 = """
 🔥 𝑱𝒐𝒊𝒏 𝑩𝒂𝒄𝒌𝒖𝒑 𝑪𝒉𝒂𝒏𝒏𝒆𝒍 Must👇
+
 1. https://t.me/+A6ausbTNqyZkNGE1
 2. https://t.me/+N2XrlhA6tjNjNTZl
 """
@@ -179,16 +192,12 @@ async def run_cmd(event):
 
     global IS_RUNNING
 
-    if not START_FROM_MSG_ID or not INTERVAL_MINUTES:
-        await event.respond(
-            "❌ Set /startfrom_ and /interval_ first"
-        )
+    if START_FROM_MSG_ID is None:
+        await event.respond("❌ Set /startfrom_ first")
         return
 
     if IS_RUNNING:
-        await event.respond(
-            "⚠️ Pipeline1 already running"
-        )
+        await event.respond("⚠️ Pipeline1 already running")
         return
 
     IS_RUNNING = True
@@ -196,9 +205,9 @@ async def run_cmd(event):
     asyncio.create_task(
         run_pipeline(
             child_channels=CHILD_CHANNEL_IDS,
-            start_msg_id=START_FROM_MSG_ID,
-            interval_minutes=INTERVAL_MINUTES,
-            post_qty=POST_QTY,
+            start_var_name="START_FROM_MSG_ID",
+            interval_var_name="INTERVAL_MINUTES",
+            post_qty_var_name="POST_QTY",
             footer_text=FOOTER_1,
             running_flag_name="IS_RUNNING"
         )
@@ -257,16 +266,12 @@ async def run2(event):
 
     global IS_RUNNING_2
 
-    if not START_FROM_MSG_ID_2 or not INTERVAL_MINUTES_2:
-        await event.respond(
-            "❌ Set /startfrom2_ and /interval2_ first"
-        )
+    if START_FROM_MSG_ID_2 is None:
+        await event.respond("❌ Set /startfrom2_ first")
         return
 
     if IS_RUNNING_2:
-        await event.respond(
-            "⚠️ Pipeline2 already running"
-        )
+        await event.respond("⚠️ Pipeline2 already running")
         return
 
     IS_RUNNING_2 = True
@@ -274,9 +279,9 @@ async def run2(event):
     asyncio.create_task(
         run_pipeline(
             child_channels=CHILD_CHANNEL_IDS_2,
-            start_msg_id=START_FROM_MSG_ID_2,
-            interval_minutes=INTERVAL_MINUTES_2,
-            post_qty=POST_QTY_2,
+            start_var_name="START_FROM_MSG_ID_2",
+            interval_var_name="INTERVAL_MINUTES_2",
+            post_qty_var_name="POST_QTY_2",
             footer_text=FOOTER_2,
             running_flag_name="IS_RUNNING_2"
         )
@@ -299,12 +304,14 @@ async def stopbot2(event):
 
 async def run_pipeline(
     child_channels,
-    start_msg_id,
-    interval_minutes,
-    post_qty,
+    start_var_name,
+    interval_var_name,
+    post_qty_var_name,
     footer_text,
     running_flag_name
 ):
+
+    global BUTTON_COUNTER
 
     if not child_channels:
 
@@ -316,11 +323,18 @@ async def run_pipeline(
         return
 
     child_index = 0
-    current_msg_id = start_msg_id
-
     disabled_channels = set()
 
     while globals()[running_flag_name]:
+
+        # 🔥 LIVE VALUES
+        current_msg_id = globals()[start_var_name]
+        interval_minutes = globals()[interval_var_name]
+        post_qty = globals()[post_qty_var_name]
+
+        if current_msg_id is None:
+            await asyncio.sleep(5)
+            continue
 
         if not child_channels:
 
@@ -354,25 +368,24 @@ async def run_pipeline(
                     ids=current_msg_id
                 )
 
-                # -------- INVALID MESSAGE --------
-
                 if not msg:
                     current_msg_id += 1
+                    globals()[start_var_name] = current_msg_id
                     continue
 
                 text = msg.text or msg.caption
 
                 if not text:
                     current_msg_id += 1
+                    globals()[start_var_name] = current_msg_id
                     continue
 
                 links = extract_diskwala_links(text)
 
                 if not links:
                     current_msg_id += 1
+                    globals()[start_var_name] = current_msg_id
                     continue
-
-                # -------- BUILD MESSAGE --------
 
                 links_block = "\n\n➡️".join(links)
 
@@ -386,6 +399,14 @@ https://t.me/howdisk/2
 {footer_text}
 """
 
+                # 🔥 BUTTON ROTATION
+                BUTTON_COUNTER += 1
+
+                if BUTTON_COUNTER % 4 == 0:
+                    selected_button = TERABOX_BUTTON
+                else:
+                    selected_button = MAIN_BUTTON
+
                 # -------- SEND --------
 
                 if msg.media:
@@ -394,7 +415,7 @@ https://t.me/howdisk/2
                         target,
                         msg.media,
                         caption=new_text,
-                        buttons=PROMO_BUTTON
+                        buttons=selected_button
                     )
 
                 else:
@@ -402,7 +423,7 @@ https://t.me/howdisk/2
                     await bot.send_message(
                         target,
                         new_text,
-                        buttons=PROMO_BUTTON
+                        buttons=selected_button
                     )
 
                 print(
@@ -412,17 +433,16 @@ https://t.me/howdisk/2
                 sent_count += 1
                 current_msg_id += 1
 
-                await asyncio.sleep(1)
+                # 🔥 LIVE UPDATE START ID
+                globals()[start_var_name] = current_msg_id
 
-            # -------- FLOOD --------
+                await asyncio.sleep(1)
 
             except FloodWaitError as e:
 
                 print(f"FloodWait {e.seconds}s")
 
                 await asyncio.sleep(e.seconds)
-
-            # -------- DEAD CHANNEL --------
 
             except (
                 PeerIdInvalidError,
@@ -441,8 +461,6 @@ https://t.me/howdisk/2
 
                 break
 
-            # -------- RANDOM ERROR --------
-
             except Exception as e:
 
                 print(
@@ -455,6 +473,7 @@ https://t.me/howdisk/2
                 )
 
                 current_msg_id += 1
+                globals()[start_var_name] = current_msg_id
 
         # -------- ROTATE CHANNEL --------
 
@@ -478,7 +497,15 @@ https://t.me/howdisk/2
             f"[{running_flag_name}] Waiting {interval_minutes} mins..."
         )
 
-        await asyncio.sleep(interval_minutes * 60)
+        # 🔥 LIVE INTERVAL SLEEP
+        total_sleep = interval_minutes * 60
+
+        for _ in range(total_sleep):
+
+            if not globals()[running_flag_name]:
+                break
+
+            await asyncio.sleep(1)
 
     print(f"{running_flag_name} stopped")
 
