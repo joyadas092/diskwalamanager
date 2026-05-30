@@ -26,6 +26,7 @@ SESSION_STRING = os.getenv("SESSION_STRING", "").strip()
 # ---------------- CONFIG ----------------
 
 MASTER_CHANNEL_ID = -1003324660206
+MASTER_CHANNEL_ID2 = -1003792045938
 
 # -------- PIPELINE 1 CHANNELS --------
 
@@ -47,6 +48,12 @@ CHILD_CHANNEL_IDS_2 = [
     -1003900921028
 ]
 
+# -------- PIPELINE 3 TERABOX CHANNELS --------
+
+CHILD_CHANNEL_IDS_3 = [
+    -1003933825877
+]
+
 # ---------------- RUNTIME STATE ----------------
 
 # -------- PIPELINE 1 --------
@@ -62,6 +69,13 @@ START_FROM_MSG_ID_2 = None
 INTERVAL_MINUTES_2 = 30
 POST_QTY_2 = 1
 IS_RUNNING_2 = False
+
+# -------- PIPELINE 3 TERABOX --------
+
+START_FROM_MSG_ID_3 = None
+INTERVAL_MINUTES_3 = 60
+POST_QTY_3 = 2
+IS_RUNNING_3 = False
 
 # ---------------- OTHER ----------------
 
@@ -96,38 +110,59 @@ def extract_diskwala_links(text):
         text
     )
 
+def extract_terabox_links(text):
+    return re.findall(
+        r"https?://\S*terabox\S+",
+        text,
+        flags=re.IGNORECASE
+    )
+
 MAIN_BUTTON = [
     [Button.url(
-        "Join & See more 🤫",
+        "🔞 Join and See More 😉",
         "https://t.me/Viral_diskwala_bot?start=1"
     )]
 ]
 
 TERABOX_BUTTON = [
     [Button.url(
-        "TeraBox Downloader ⏬",
+        "🥵 TeraBox Downloader ⏬",
         "https://t.me/TerawalaRoBot"
     )]
 ]
 
-BUTTON_COUNTER = 0
-
 # -------- FOOTERS --------
 
-FOOTER_1 = """
-𝑷𝒍𝒆𝒂𝒔𝒆 𝑱𝒐𝒊𝒏 Backup 𝑪𝒉𝒂𝒏𝒏𝒆𝒍𝒔 Must 🙏
+FOOTER_1 = """<b>🤔 How to Open Links? | लिंक कैसे खोलें 👇</b>
+<b><i><a href="https://t.me/howdisk/2">📖 View Tutorial</a></i></b>
 
-1. https://t.me/+E5TOi5ci6ZljY2Q9
-2. https://t.me/+P-MVSzKF3hsxMjA1
+🛍️<b>Offers Channel Join karo</b>
+https://t.me/+2IxPmIwTFrhlYmI1
+"""
+# 𝑷𝒍𝒆𝒂𝒔𝒆 𝑱𝒐𝒊𝒏 Backup 𝑪𝒉𝒂𝒏𝒏𝒆𝒍𝒔 Must 🙏
+
+# 1. https://t.me/+vnLPLvMn8vQxMDVl
+# 2. https://t.me/+P-MVSzKF3hsxMjA1
+FOOTER_2 = """<b>🤔 How to Open Links? | लिंक कैसे खोलें 👇</b>
+<b><i><a href="https://t.me/howdisk/2">📖 View Tutorial</a></i></b>
+
+🛒<b>Join Crazy Deals Channel ⏬</b>
+https://t.me/+2IxPmIwTFrhlYmI1
 """
 
-FOOTER_2 = """
-🔥 𝑱𝒐𝒊𝒏 𝑩𝒂𝒄𝒌𝒖𝒑 𝑪𝒉𝒂𝒏𝒏𝒆𝒍 Must👇
+# 🔥 𝑱𝒐𝒊𝒏 𝑩𝒂𝒄𝒌𝒖𝒑 𝑪𝒉𝒂𝒏𝒏𝒆𝒍 Must👇
 
-1. https://t.me/+A6ausbTNqyZkNGE1
-2. https://t.me/+N2XrlhA6tjNjNTZl
+# 1. https://t.me/+A6ausbTNqyZkNGE1
+# 2. https://t.me/+vnLPLvMn8vQxMDVl
+FOOTER_3 = """<b><i><a href="https://t.me/Viral_diskwala_bot?start=1">📖 View Diskwala Channels</a></i></b>
+
+🛍️<b>Join Offers Channel ⏬</b>
+https://t.me/+2IxPmIwTFrhlYmI1
 """
+# 🔥 𝑱𝒐𝒊𝒏 𝑩𝒂𝒄𝒌𝒖𝒑 𝑪𝒉𝒂𝒏𝒏𝒆𝒍 Must👇
 
+# 1. https://t.me/+vnLPLvMn8vQxMDVl
+# 2. https://t.me/+A6ausbTNqyZkNGE1
 # ---------------- REPORT ----------------
 
 async def report_issue(issue_text):
@@ -204,12 +239,15 @@ async def run_cmd(event):
 
     asyncio.create_task(
         run_pipeline(
+            source_channel_id=MASTER_CHANNEL_ID,
             child_channels=CHILD_CHANNEL_IDS,
             start_var_name="START_FROM_MSG_ID",
             interval_var_name="INTERVAL_MINUTES",
             post_qty_var_name="POST_QTY",
             footer_text=FOOTER_1,
-            running_flag_name="IS_RUNNING"
+            running_flag_name="IS_RUNNING",
+            link_extractor=extract_diskwala_links,
+            buttons=MAIN_BUTTON,
         )
     )
 
@@ -278,12 +316,15 @@ async def run2(event):
 
     asyncio.create_task(
         run_pipeline(
+            source_channel_id=MASTER_CHANNEL_ID,
             child_channels=CHILD_CHANNEL_IDS_2,
             start_var_name="START_FROM_MSG_ID_2",
             interval_var_name="INTERVAL_MINUTES_2",
             post_qty_var_name="POST_QTY_2",
             footer_text=FOOTER_2,
-            running_flag_name="IS_RUNNING_2"
+            running_flag_name="IS_RUNNING_2",
+            link_extractor=extract_diskwala_links,
+            buttons=MAIN_BUTTON,
         )
     )
 
@@ -299,19 +340,122 @@ async def stopbot2(event):
     await event.respond("🛑 Pipeline2 stopped")
 
 # =========================================================
+# ================= PIPELINE 3 TERABOX COMMANDS ===========
+# =========================================================
+
+@bot.on(events.NewMessage(pattern=r"^/startfrom3(?:_|\s+)(\d+)$"))
+async def startfrom3(event):
+
+    global START_FROM_MSG_ID_3
+
+    START_FROM_MSG_ID_3 = int(event.pattern_match.group(1))
+
+    await event.respond(
+        f"Pipeline3 Terabox Start ID = {START_FROM_MSG_ID_3}"
+    )
+
+@bot.on(events.NewMessage(pattern=r"^/interval3(?:_|\s+)(\d+)$"))
+async def interval3(event):
+
+    global INTERVAL_MINUTES_3
+
+    INTERVAL_MINUTES_3 = int(event.pattern_match.group(1))
+
+    await event.respond(
+        f"Pipeline3 Terabox Interval = {INTERVAL_MINUTES_3}"
+    )
+
+@bot.on(events.NewMessage(pattern=r"^/postqty3(?:_|\s+)(\d+)$"))
+async def postqty3(event):
+
+    global POST_QTY_3
+
+    POST_QTY_3 = int(event.pattern_match.group(1))
+
+    await event.respond(
+        f"Pipeline3 Terabox Qty = {POST_QTY_3}"
+    )
+
+@bot.on(events.NewMessage(pattern=r"^/footer3(?:\s+([\s\S]+))?$"))
+async def footer3(event):
+
+    global FOOTER_3
+
+    new_footer = event.pattern_match.group(1)
+
+    if not new_footer:
+        reply = await event.get_reply_message()
+        new_footer = reply.text if reply else None
+
+    if not new_footer:
+        await event.respond(
+            "Send /footer3 your footer text, or reply /footer3 to a footer message."
+        )
+        return
+
+    FOOTER_3 = new_footer.strip()
+
+    await event.respond("Pipeline3 Terabox footer updated")
+
+@bot.on(events.NewMessage(pattern=r"^/run3$"))
+async def run3(event):
+
+    global IS_RUNNING_3
+
+    if START_FROM_MSG_ID_3 is None:
+        await event.respond("Set /startfrom3_<id> first")
+        return
+
+    if not CHILD_CHANNEL_IDS_3:
+        await event.respond("No Terabox child channels configured in CHILD_CHANNEL_IDS_3")
+        return
+
+    if IS_RUNNING_3:
+        await event.respond("Pipeline3 Terabox already running")
+        return
+
+    IS_RUNNING_3 = True
+
+    asyncio.create_task(
+        run_pipeline(
+            source_channel_id=MASTER_CHANNEL_ID2,
+            child_channels=CHILD_CHANNEL_IDS_3,
+            start_var_name="START_FROM_MSG_ID_3",
+            interval_var_name="INTERVAL_MINUTES_3",
+            post_qty_var_name="POST_QTY_3",
+            footer_text=FOOTER_3,
+            running_flag_name="IS_RUNNING_3",
+            link_extractor=extract_terabox_links,
+            buttons=TERABOX_BUTTON,
+        )
+    )
+
+    await event.respond("Pipeline3 Terabox started")
+
+@bot.on(events.NewMessage(pattern=r"^/stopbot_?3$"))
+async def stopbot3(event):
+
+    global IS_RUNNING_3
+
+    IS_RUNNING_3 = False
+
+    await event.respond("Pipeline3 Terabox stopped")
+
+# =========================================================
 # ==================== MAIN PIPELINE ======================
 # =========================================================
 
 async def run_pipeline(
+    source_channel_id,
     child_channels,
     start_var_name,
     interval_var_name,
     post_qty_var_name,
     footer_text,
-    running_flag_name
+    running_flag_name,
+    link_extractor,
+    buttons,
 ):
-
-    global BUTTON_COUNTER
 
     if not child_channels:
 
@@ -364,7 +508,7 @@ async def run_pipeline(
             try:
 
                 msg = await bot.get_messages(
-                    MASTER_CHANNEL_ID,
+                    source_channel_id,
                     ids=current_msg_id
                 )
 
@@ -380,7 +524,7 @@ async def run_pipeline(
                     globals()[start_var_name] = current_msg_id
                     continue
 
-                links = extract_diskwala_links(text)
+                links = link_extractor(text)
 
                 if not links:
                     current_msg_id += 1
@@ -393,19 +537,11 @@ async def run_pipeline(
 
 {links_block}
 
-**🤔 How to Open Links see tutorial 👇🏻🤗| लिंक कैसे खोलें 👇**
-https://t.me/howdisk/2
-
 {footer_text}
 """
 
-                # 🔥 BUTTON ROTATION
-                BUTTON_COUNTER += 1
-
-                if BUTTON_COUNTER % 4 == 0:
-                    selected_button = TERABOX_BUTTON
-                else:
-                    selected_button = MAIN_BUTTON
+                # Pipeline-specific static button.
+                selected_button = buttons
 
                 # -------- SEND --------
 
@@ -415,7 +551,8 @@ https://t.me/howdisk/2
                         target,
                         msg.media,
                         caption=new_text,
-                        buttons=selected_button
+                        buttons=selected_button,
+                        parse_mode="html"
                     )
 
                 else:
@@ -423,7 +560,8 @@ https://t.me/howdisk/2
                     await bot.send_message(
                         target,
                         new_text,
-                        buttons=selected_button
+                        buttons=selected_button,
+                        parse_mode="html"
                     )
 
                 print(
