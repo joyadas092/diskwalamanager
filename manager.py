@@ -51,7 +51,8 @@ CHILD_CHANNEL_IDS_2 = [
 # -------- PIPELINE 3 TERABOX CHANNELS --------
 
 CHILD_CHANNEL_IDS_3 = [
-    -1003933825877
+    -1003646196889,
+    -1003812737640
 ]
 
 # ---------------- RUNTIME STATE ----------------
