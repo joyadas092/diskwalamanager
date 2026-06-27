@@ -11,6 +11,10 @@ from telethon.errors import (
     ChannelPrivateError,
     ChatWriteForbiddenError,
 )
+from telethon.tl.types import (
+    MessageMediaPhoto,
+    MessageMediaDocument,
+)
 from telethon.sessions import StringSession
 from dotenv import load_dotenv
 
@@ -137,8 +141,8 @@ TERABOX_BUTTON = [
 FOOTER_1 = """<b>🤔 How to Open Links? | लिंक कैसे खोलें 👇</b>
 <b><i><a href="https://t.me/howdisk/2">📖 View Tutorial</a></i></b>
 
-🛍️<b>Offers Channel Join karo</b>
-https://t.me/+2IxPmIwTFrhlYmI1
+😉<b>Daily Trending. Open 👇</b>
+https://diskwala.fun/
 """
 # 𝑷𝒍𝒆𝒂𝒔𝒆 𝑱𝒐𝒊𝒏 Backup 𝑪𝒉𝒂𝒏𝒏𝒆𝒍𝒔 Must 🙏
 
@@ -147,8 +151,8 @@ https://t.me/+2IxPmIwTFrhlYmI1
 FOOTER_2 = """<b>🤔 How to Open Links? | लिंक कैसे खोलें 👇</b>
 <b><i><a href="https://t.me/howdisk/2">📖 View Tutorial</a></i></b>
 
-🛒<b>Join Crazy Deals Channel ⏬</b>
-https://t.me/+2IxPmIwTFrhlYmI1
+😉<b>Save this Website! ⏬</b>
+https://diskwala.fun/
 """
 
 # 🔥 𝑱𝒐𝒊𝒏 𝑩𝒂𝒄𝒌𝒖𝒑 𝑪𝒉𝒂𝒏𝒏𝒆𝒍 Must👇
@@ -157,8 +161,8 @@ https://t.me/+2IxPmIwTFrhlYmI1
 # 2. https://t.me/+vnLPLvMn8vQxMDVl
 FOOTER_3 = """<b><i><a href="https://t.me/Viral_diskwala_bot?start=1">📖 View Diskwala Channels</a></i></b>
 
-🛍️<b>Join Offers Channel ⏬</b>
-https://t.me/+2IxPmIwTFrhlYmI1
+😉<b>Daily Video ⏬</b>
+https://diskwala.fun/
 """
 # 🔥 𝑱𝒐𝒊𝒏 𝑩𝒂𝒄𝒌𝒖𝒑 𝑪𝒉𝒂𝒏𝒏𝒆𝒍 Must👇
 
@@ -264,7 +268,7 @@ async def stop_cmd(event):
     await event.respond("🛑 Pipeline1 stopped")
 
 # =========================================================
-# ================= PIPELINE 2 COMMANDS ===================
+# ================= PIPELINE 2 COMMANDS ========send_file===========
 # =========================================================
 
 @bot.on(events.NewMessage(pattern=r"^/startfrom2_(\d+)$"))
@@ -546,7 +550,25 @@ async def run_pipeline(
 
                 # -------- SEND --------
 
-                if msg.media:
+                # if msg.media:
+                #
+                #     await bot.send_file(
+                #         target,
+                #         msg.media,
+                #         caption=new_text,
+                #         buttons=selected_button,
+                #         parse_mode="html"
+                #     )
+                #
+                # else:
+                #
+                #     await bot.send_message(
+                #         target,
+                #         new_text,
+                #         buttons=selected_button,
+                #         parse_mode="html"
+                #     )
+                if isinstance(msg.media, (MessageMediaPhoto, MessageMediaDocument)):
 
                     await bot.send_file(
                         target,
@@ -556,15 +578,16 @@ async def run_pipeline(
                         parse_mode="html"
                     )
 
+                # Text OR webpage preview (Terabox/Diskwala link only)
                 else:
 
                     await bot.send_message(
                         target,
                         new_text,
                         buttons=selected_button,
-                        parse_mode="html"
+                        parse_mode="html",
+                        link_preview=True
                     )
-
                 print(
                     f"[{running_flag_name}] Posted {current_msg_id} → {target}"
                 )
