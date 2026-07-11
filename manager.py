@@ -65,14 +65,14 @@ CHILD_CHANNEL_IDS_3 = [
 
 START_FROM_MSG_ID = None
 INTERVAL_MINUTES = 30
-POST_QTY = 1
+POST_QTY = 2
 IS_RUNNING = False
 
 # -------- PIPELINE 2 --------
 
 START_FROM_MSG_ID_2 = None
 INTERVAL_MINUTES_2 = 30
-POST_QTY_2 = 1
+POST_QTY_2 = 2
 IS_RUNNING_2 = False
 
 # -------- PIPELINE 3 TERABOX --------
@@ -142,7 +142,7 @@ FOOTER_1 = """<b>🤔 How to Open Links? | लिंक कैसे खोल�
 <b><i><a href="https://t.me/howdisk/2">📖 View Tutorial</a></i></b>
 
 😉<b>Daily Trending. Open 👇</b>
-https://diskwala.fun/
+bitly.cx/diskwala
 """
 # 𝑷𝒍𝒆𝒂𝒔𝒆 𝑱𝒐𝒊𝒏 Backup 𝑪𝒉𝒂𝒏𝒏𝒆𝒍𝒔 Must 🙏
 
@@ -151,8 +151,8 @@ https://diskwala.fun/
 FOOTER_2 = """<b>🤔 How to Open Links? | लिंक कैसे खोलें 👇</b>
 <b><i><a href="https://t.me/howdisk/2">📖 View Tutorial</a></i></b>
 
-😉<b>Save this Website! ⏬</b>
-https://diskwala.fun/
+😉<b>Save this Link! ⏬</b>
+bitly.cx/diskwala
 """
 
 # 🔥 𝑱𝒐𝒊𝒏 𝑩𝒂𝒄𝒌𝒖𝒑 𝑪𝒉𝒂𝒏𝒏𝒆𝒍 Must👇
@@ -162,7 +162,7 @@ https://diskwala.fun/
 FOOTER_3 = """<b><i><a href="https://t.me/Viral_diskwala_bot?start=1">📖 View Diskwala Channels</a></i></b>
 
 😉<b>Daily Video ⏬</b>
-https://diskwala.fun/
+bitly.cx/diskwala
 """
 # 🔥 𝑱𝒐𝒊𝒏 𝑩𝒂𝒄𝒌𝒖𝒑 𝑪𝒉𝒂𝒏𝒏𝒆𝒍 Must👇
 
