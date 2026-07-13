@@ -125,7 +125,7 @@ def extract_terabox_links(text):
 MAIN_BUTTON = [
     [Button.url(
         "🔞 Join and See More 😉",
-        "https://t.me/Viral_diskwala_bot?start=1"
+        "https://t.me/Diskwala_Viral_bot?start=1"
     )]
 ]
 
@@ -142,7 +142,7 @@ FOOTER_1 = """<b>🤔 How to Open Links? | लिंक कैसे खोल�
 <b><i><a href="https://t.me/howdisk/2">📖 View Tutorial</a></i></b>
 
 😉<b>Daily Trending. Open 👇</b>
-bitly.cx/diskwala
+  bitly.cx/diskwala
 """
 # 𝑷𝒍𝒆𝒂𝒔𝒆 𝑱𝒐𝒊𝒏 Backup 𝑪𝒉𝒂𝒏𝒏𝒆𝒍𝒔 Must 🙏
 
@@ -151,18 +151,18 @@ bitly.cx/diskwala
 FOOTER_2 = """<b>🤔 How to Open Links? | लिंक कैसे खोलें 👇</b>
 <b><i><a href="https://t.me/howdisk/2">📖 View Tutorial</a></i></b>
 
-😉<b>Save this Link! ⏬</b>
-bitly.cx/diskwala
+😉<b>Save this Link!⏬Visit Now</b>
+  bitly.cx/diskwala
 """
 
 # 🔥 𝑱𝒐𝒊𝒏 𝑩𝒂𝒄𝒌𝒖𝒑 𝑪𝒉𝒂𝒏𝒏𝒆𝒍 Must👇
 
 # 1. https://t.me/+A6ausbTNqyZkNGE1
 # 2. https://t.me/+vnLPLvMn8vQxMDVl
-FOOTER_3 = """<b><i><a href="https://t.me/Viral_diskwala_bot?start=1">📖 View Diskwala Channels</a></i></b>
+FOOTER_3 = """<b><i><a href="https://t.me/Diskwala_Viral_bot?start=1">📖 View Diskwala Channels</a></i></b>
 
-😉<b>Daily Video ⏬</b>
-bitly.cx/diskwala
+😉<b>Daily Video ⏬Open</b>
+ bitly.cx/diskwala
 """
 # 🔥 𝑱𝒐𝒊𝒏 𝑩𝒂𝒄𝒌𝒖𝒑 𝑪𝒉𝒂𝒏𝒏𝒆𝒍 Must👇
 
