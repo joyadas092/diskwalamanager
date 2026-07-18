@@ -31,11 +31,13 @@ SESSION_STRING = os.getenv("SESSION_STRING", "").strip()
 
 MASTER_CHANNEL_ID = -1003324660206
 MASTER_CHANNEL_ID2 = -1003792045938
+MASTER_CHANNEL_ID3 = -1003818431774
 
 # -------- PIPELINE 1 CHANNELS --------
 
 CHILD_CHANNEL_IDS = [
     -1003925918191,
+    -1003988176230,
     -1003662286694,
     -1003440216101,
     -1003509258780,
@@ -48,15 +50,19 @@ CHILD_CHANNEL_IDS = [
 CHILD_CHANNEL_IDS_2 = [
     -1003729451436,
     -1003852141524,
+    -1003812737640,
     -1003315790833,
-    -1003900921028
+    -1003900921028,
+    -1003981620549,
+    -1003655989898
 ]
 
 # -------- PIPELINE 3 TERABOX CHANNELS --------
 
 CHILD_CHANNEL_IDS_3 = [
-    -1003988176230,
-    -1003812737640
+    -1004384690409,
+    -1003706132462
+    
 ]
 
 # ---------------- RUNTIME STATE ----------------
@@ -65,14 +71,14 @@ CHILD_CHANNEL_IDS_3 = [
 
 START_FROM_MSG_ID = None
 INTERVAL_MINUTES = 30
-POST_QTY = 2
+POST_QTY = 1
 IS_RUNNING = False
 
 # -------- PIPELINE 2 --------
 
 START_FROM_MSG_ID_2 = None
 INTERVAL_MINUTES_2 = 30
-POST_QTY_2 = 2
+POST_QTY_2 = 1
 IS_RUNNING_2 = False
 
 # -------- PIPELINE 3 TERABOX --------
@@ -81,6 +87,8 @@ START_FROM_MSG_ID_3 = None
 INTERVAL_MINUTES_3 = 60
 POST_QTY_3 = 2
 IS_RUNNING_3 = False
+
+
 
 # ---------------- OTHER ----------------
 
@@ -131,13 +139,14 @@ MAIN_BUTTON = [
 
 TERABOX_BUTTON = [
     [Button.url(
-        "🥵 TeraBox Downloader ⏬",
-        "https://t.me/TerawalaRoBot"
+        "🥵 See Other Channels ⏬",
+        "https://t.me/Diskwala_Viral_bot?start=1"
     )]
 ]
 
-# -------- FOOTERS --------
 
+
+# -------- FOOTERS --------
 FOOTER_1 = """<b>🤔 How to Open Links? | लिंक कैसे खोलें 👇</b>
 <b><i><a href="https://t.me/howdisk/2">📖 View Tutorial</a></i></b>
 
@@ -159,15 +168,25 @@ FOOTER_2 = """<b>🤔 How to Open Links? | लिंक कैसे खोल�
 
 # 1. https://t.me/+A6ausbTNqyZkNGE1
 # 2. https://t.me/+vnLPLvMn8vQxMDVl
-FOOTER_3 = """<b><i><a href="https://t.me/Diskwala_Viral_bot?start=1">📖 View Diskwala Channels</a></i></b>
+# FOOTER_3 = """<b><i><a href="https://t.me/Diskwala_Viral_bot?start=1">📖 View Diskwala Channels</a></i></b>
 
-😉<b>Daily Video ⏬Open</b>
- bitly.cx/diskwala
-"""
+# 😉<b>Daily Video ⏬Open</b>
+#  bitly.cx/diskwala
+# """
 # 🔥 𝑱𝒐𝒊𝒏 𝑩𝒂𝒄𝒌𝒖𝒑 𝑪𝒉𝒂𝒏𝒏𝒆𝒍 Must👇
 
 # 1. https://t.me/+vnLPLvMn8vQxMDVl
 # 2. https://t.me/+A6ausbTNqyZkNGE1
+
+
+FOOTER_3 = """<b>🤔 ଲିଙ୍କ କେମିତି ଖୋଲିବେ? 👇</b>
+<b><i><a href="https://t.me/howdisk/2">📖 ଟ୍ୟୁଟୋରିଆଲ୍ ଦେଖନ୍ତୁ</a></i></b>
+
+😉<b>ଏହି ଲିଙ୍କଟି ସେଭ୍ କର! ⏬</b>
+  bitly.cx/diskwala
+"""
+
+
 # ---------------- REPORT ----------------
 
 async def report_issue(issue_text):
