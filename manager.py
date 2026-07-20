@@ -449,7 +449,8 @@ async def run3(event):
             post_qty_var_name="POST_QTY_3",
             footer_text=FOOTER_3,
             running_flag_name="IS_RUNNING_3",
-            link_extractor=extract_terabox_links,
+            # link_extractor=extract_terabox_links,
+            link_extractor=extract_diskwala_links,
             buttons=TERABOX_BUTTON,
         )
     )
