@@ -36,6 +36,7 @@ MASTER_CHANNEL_ID2 = -1003818431774
 # -------- PIPELINE 1 CHANNELS --------
 
 CHILD_CHANNEL_IDS = [
+    -1004434467809,
     -1003925918191,
     -1003988176230,
     -1003662286694,
@@ -48,6 +49,7 @@ CHILD_CHANNEL_IDS = [
 # -------- PIPELINE 2 CHANNELS --------
 
 CHILD_CHANNEL_IDS_2 = [
+    -1004333767188,
     -1003729451436,
     -1003852141524,
     -1003812737640,
@@ -179,10 +181,10 @@ FOOTER_2 = """<b>🤔 How to Open Links? | लिंक कैसे खोल�
 # 2. https://t.me/+A6ausbTNqyZkNGE1
 
 
-FOOTER_3 = """<b>🤔 ଲିଙ୍କ କେମିତି ଖୋଲିବେ? 👇</b>
-<b><i><a href="https://t.me/howdisk/2">📖 ଟ୍ୟୁଟୋରିଆଲ୍ ଦେଖନ୍ତୁ</a></i></b>
+FOOTER_3 = """<b>🤔 How to Open Links? | लिंक कैसे खोलें 👇</b>
+<b><i><a href="https://t.me/howdisk/2">📖 View Tutorial</a></i></b>
 
-😉<b>ଏହି ଲିଙ୍କଟି ସେଭ୍ କର! ⏬</b>
+😉<b>Save this Link!⏬Visit Now</b>
   bitly.cx/diskwala
 """
 
