@@ -38,7 +38,7 @@ MASTER_CHANNEL_ID2 = -1003818431774
 CHILD_CHANNEL_IDS = [
     -1004434467809,
     -1003925918191,
-    -1003988176230,
+    -1003967952177,
     -1003662286694,
     -1003440216101,
     -1003509258780,
@@ -52,7 +52,7 @@ CHILD_CHANNEL_IDS_2 = [
     -1004332767188,
     -1003729451436,
     -1003852141524,
-    -1003812737640,
+    -1004482717052,
     -1003315790833,
     -1003900921028,
     -1003981620549,
@@ -135,14 +135,14 @@ def extract_terabox_links(text):
 MAIN_BUTTON = [
     [Button.url(
         "🔞 Join and See More 😉",
-        "https://t.me/Diskwala_Viral_bot?start=1"
+        "https://t.me/Viral_diskwala_bot?start=1"
     )]
 ]
 
 TERABOX_BUTTON = [
     [Button.url(
         "🥵 See Other Channels ⏬",
-        "https://t.me/Diskwala_Viral_bot?start=1"
+        "https://t.me/Viral_diskwala_bot?start=1"
     )]
 ]
 
