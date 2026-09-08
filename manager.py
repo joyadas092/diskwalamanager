@@ -36,7 +36,6 @@ MASTER_CHANNEL_ID2 = -1003818431774
 # -------- PIPELINE 1 CHANNELS --------
 
 CHILD_CHANNEL_IDS = [
-    -1004434467809,
     -1003925918191,
     -1003967952177,
     -1003662286694,
@@ -142,7 +141,7 @@ MAIN_BUTTON = [
 TERABOX_BUTTON = [
     [Button.url(
         "🥵 See Other Channels ⏬",
-        "https://t.me/Viral_diskwala_bot?start=1"
+        "https://t.me/Diskwala_Viral_bot?start=1"
     )]
 ]
 
@@ -152,8 +151,8 @@ TERABOX_BUTTON = [
 FOOTER_1 = """<b>🤔 How to Open Links? | लिंक कैसे खोलें 👇</b>
 <b><i><a href="https://t.me/howdisk/2">📖 View Tutorial</a></i></b>
 
-😉<b>Daily Trending. Open 👇</b>
-  bitly.cx/diskwala
+😉<b>Join Big Billion Deals</b>
+  https://t.me/+2IxPmIwTFrhlYmI1
 """
 # 𝑷𝒍𝒆𝒂𝒔𝒆 𝑱𝒐𝒊𝒏 Backup 𝑪𝒉𝒂𝒏𝒏𝒆𝒍𝒔 Must 🙏
 
@@ -162,8 +161,8 @@ FOOTER_1 = """<b>🤔 How to Open Links? | लिंक कैसे खोल�
 FOOTER_2 = """<b>🤔 How to Open Links? | लिंक कैसे खोलें 👇</b>
 <b><i><a href="https://t.me/howdisk/2">📖 View Tutorial</a></i></b>
 
-😉<b>Save this Link!⏬Visit Now</b>
-  bitly.cx/diskwala
+😉<b>Join Offers Channel</b>
+  https://t.me/+2IxPmIwTFrhlYmI1
 """
 
 # 🔥 𝑱𝒐𝒊𝒏 𝑩𝒂𝒄𝒌𝒖𝒑 𝑪𝒉𝒂𝒏𝒏𝒆𝒍 Must👇
@@ -184,8 +183,8 @@ FOOTER_2 = """<b>🤔 How to Open Links? | लिंक कैसे खोल�
 FOOTER_3 = """<b>🤔 How to Open Links? | लिंक कैसे खोलें 👇</b>
 <b><i><a href="https://t.me/howdisk/2">📖 View Tutorial</a></i></b>
 
-😉<b>Save this Link!⏬Visit Now</b>
-  bitly.cx/diskwala
+😉<b>Join Big Billion Deals</b>
+  https://t.me/+2IxPmIwTFrhlYmI1
 """
 
 
