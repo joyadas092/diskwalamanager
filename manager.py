@@ -12,13 +12,13 @@ from telethon.errors import (
     PeerIdInvalidError,
     ChannelPrivateError,
     ChatWriteForbiddenError,
+    BotMethodInvalidError,
 )
 from telethon.tl.types import (
     MessageMediaPhoto,
     MessageMediaDocument,
     MessageEmpty,
 )
-from telethon.sessions import StringSession
 from dotenv import load_dotenv
 
 # ---------------- LOAD ENV ----------------
@@ -28,7 +28,6 @@ load_dotenv()
 API_ID = int(os.getenv("API_ID"))
 API_HASH = os.getenv("API_HASH")
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-SESSION_STRING = os.getenv("SESSION_STRING", "").strip()
 
 # ---------------- CONFIG ----------------
 
@@ -106,9 +105,8 @@ INTERVAL_MINUTES_3 = 60
 POST_QTY_3 = 2
 IS_RUNNING_3 = False
 
-
-
-# ---------------- OTHER ----------------
+# Consecutive missing message ids → treat as past end of source (no GetHistory API).
+SOURCE_ID_MISS_LIMIT = 40
 
 LOG_USER_ID = 6796879431
 ADMIN_USER_ID = LOG_USER_ID
@@ -119,13 +117,14 @@ pending_admin_action = {}
 # ---------------- TELETHON CLIENT ----------------
 
 bot = TelegramClient("diskwala_bot", API_ID, API_HASH)
-user_client = (
-    TelegramClient(StringSession(SESSION_STRING), API_ID, API_HASH)
-    if SESSION_STRING
-    else None
-)
-read_client = None
-clients_ready = False
+
+
+async def fetch_source_message(source_channel_id, message_id):
+    """Fetch one message by id (GetMessages — not GetHistory). Bot must be in source channel."""
+    result = await bot.get_messages(source_channel_id, ids=int(message_id))
+    if isinstance(result, list):
+        return result[0] if result else None
+    return result
 
 # ---------------- FLASK KEEP ALIVE ----------------
 
@@ -333,61 +332,17 @@ def remove_pipeline_channel(pipeline_key, channel_id):
     return True, f"Removed `{channel_id}`"
 
 
-async def ensure_clients_ready():
-    global read_client, clients_ready
-
-    if clients_ready and read_client is not None:
-        return
-
-    if user_client:
-        if not user_client.is_connected():
-            await user_client.connect()
-        if await user_client.is_user_authorized():
-            read_client = user_client
-            print("Source reads: user session")
-        else:
-            read_client = bot
-            print("Source reads: bot (user session not authorized)")
-    else:
-        read_client = bot
-        print("Source reads: bot")
-
-    clients_ready = True
-
-
-async def get_read_client():
-    await ensure_clients_ready()
-    return read_client
-
-
-async def source_channel_latest_msg_id(source_channel_id):
-    client = await get_read_client()
-    latest = await client.get_messages(source_channel_id, limit=1)
-    if not latest:
-        return None
-    msg = latest[0] if isinstance(latest, list) else latest
-    if not msg or isinstance(msg, MessageEmpty) or not getattr(msg, "id", None):
-        return None
-    return msg.id
-
-
-async def stop_at_source_end(running_flag_name, start_var_name, source_channel_id):
-    latest_id = await source_channel_latest_msg_id(source_channel_id)
+async def notify_source_id_exhausted(
+    running_flag_name, start_var_name, miss_streak, source_channel_id
+):
     current_msg_id = globals()[start_var_name]
-    if latest_id is None or current_msg_id is None:
-        return False
-
-    if current_msg_id > latest_id:
-        await report_issue(
-            f"🛑 Reached end of source channel for `{running_flag_name}`\n"
-            f"Last message id: `{latest_id}`\n"
-            f"Next start id: `{current_msg_id}`\n"
-            f"Pipeline auto-stopped (same as /stopbot)."
-        )
-        globals()[running_flag_name] = False
-        return True
-
-    return False
+    await report_issue(
+        f"🛑 `{running_flag_name}` auto-stopped\n"
+        f"No message at `{miss_streak}` ids in a row (from `{current_msg_id - miss_streak}`).\n"
+        f"Source: `{source_channel_id}`\n"
+        f"Likely past last post — set a new start id or use /stopbot."
+    )
+    globals()[running_flag_name] = False
 
 
 def admin_pipeline_title(pipeline_key):
@@ -444,8 +399,7 @@ async def fetch_channel_title(channel_id, refresh=False):
         return titles[key]
 
     try:
-        client = await get_read_client()
-        entity = await client.get_entity(channel_id)
+        entity = await bot.get_entity(channel_id)
         title = getattr(entity, "title", None)
         if not title:
             username = getattr(entity, "username", None)
@@ -669,7 +623,6 @@ async def launch_pipeline(pipeline_key):
     if not pipeline_active_channels(pipeline_key):
         return False, "No active channels in this set"
 
-    await ensure_clients_ready()
     globals()[running_var] = True
     asyncio.create_task(run_pipeline(**kwargs))
     return True, f"Set {pipeline_key} started 🚀"
@@ -1172,9 +1125,6 @@ async def _run_pipeline_loop(
     buttons,
 ):
 
-    await ensure_clients_ready()
-    reader = read_client
-
     child_channels = pipeline_active_channels(pipeline_key)
 
     if not child_channels:
@@ -1188,6 +1138,7 @@ async def _run_pipeline_loop(
 
     child_index = 0
     disabled_channels = set()
+    source_miss_streak = 0
 
     while globals()[running_flag_name]:
 
@@ -1204,11 +1155,6 @@ async def _run_pipeline_loop(
         if current_msg_id is None:
             await asyncio.sleep(5)
             continue
-
-        if await stop_at_source_end(
-            running_flag_name, start_var_name, source_channel_id
-        ):
-            return
 
         if not child_channels:
 
@@ -1234,24 +1180,26 @@ async def _run_pipeline_loop(
 
             try:
 
-                if await stop_at_source_end(
-                    running_flag_name, start_var_name, source_channel_id
-                ):
-                    return
-
-                msg = await reader.get_messages(
+                msg = await fetch_source_message(
                     source_channel_id,
-                    ids=current_msg_id
+                    current_msg_id,
                 )
 
                 if not msg or isinstance(msg, MessageEmpty):
+                    source_miss_streak += 1
                     current_msg_id += 1
                     globals()[start_var_name] = current_msg_id
-                    if await stop_at_source_end(
-                        running_flag_name, start_var_name, source_channel_id
-                    ):
+                    if source_miss_streak >= SOURCE_ID_MISS_LIMIT:
+                        await notify_source_id_exhausted(
+                            running_flag_name,
+                            start_var_name,
+                            source_miss_streak,
+                            source_channel_id,
+                        )
                         return
                     continue
+
+                source_miss_streak = 0
 
                 text = msg.text or msg.caption
 
@@ -1354,6 +1302,15 @@ async def _run_pipeline_loop(
 
                 break
 
+            except BotMethodInvalidError as e:
+                await report_issue(
+                    f"❌ Cannot read source `{source_channel_id}` msg `{current_msg_id}` as bot.\n"
+                    f"Add this bot as **admin** in the master/source channel, then /run again.\n"
+                    f"{e}"
+                )
+                globals()[running_flag_name] = False
+                return
+
             except Exception as e:
 
                 print(
@@ -1419,7 +1376,7 @@ if __name__ == "__main__":
 
     async def startup():
         await bot.start(bot_token=BOT_TOKEN)
-        await ensure_clients_ready()
+        print("Bot ready — source messages fetched by id via bot (no chat history)")
 
     bot.loop.run_until_complete(startup())
     bot.run_until_disconnected()
