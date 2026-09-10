@@ -78,6 +78,7 @@ DEFAULT_RUNTIME_CONFIG = {
     "disabled": {"1": [], "2": [], "3": []},
     "interval_minutes": {"1": 30, "2": 30, "3": 60},
     "post_qty": {"1": 1, "2": 1, "3": 2},
+    "channel_titles": {},
 }
 
 # ---------------- RUNTIME STATE ----------------
@@ -175,6 +176,12 @@ def load_runtime_config():
             )
         if pipeline_key in loaded.get("post_qty", {}):
             merged["post_qty"][pipeline_key] = int(loaded["post_qty"][pipeline_key])
+
+    if isinstance(loaded.get("channel_titles"), dict):
+        merged["channel_titles"] = {
+            str(channel_id): str(title)
+            for channel_id, title in loaded["channel_titles"].items()
+        }
 
     runtime_config = merged
     sync_globals_from_config()
@@ -334,7 +341,61 @@ def build_admin_main_buttons():
     ]
 
 
-def build_admin_pipeline_buttons(pipeline_key):
+def shorten_button_text(text, max_len=30):
+    cleaned = re.sub(r"\s+", " ", (text or "").strip())
+    if len(cleaned) <= max_len:
+        return cleaned
+    return cleaned[: max_len - 1] + "…"
+
+
+def format_channel_button_label(mark, channel_id, channel_name, max_len=64):
+    channel_id = int(channel_id)
+    id_part = f"{mark} {channel_id} "
+    full = id_part + channel_name
+    if len(full) <= max_len:
+        return full
+
+    # Id first; shorten name if needed.
+    room_for_name = max_len - len(id_part)
+    if room_for_name < 4:
+        return shorten_button_text(f"{mark} {channel_id}", max_len=max_len)
+    short_name = channel_name[: room_for_name - 1] + "…"
+    return id_part + short_name
+
+
+def format_channel_line(mark, channel_id, channel_name):
+    return f"{mark} `{channel_id}` **{channel_name}**"
+
+
+async def fetch_channel_title(channel_id, refresh=False):
+    channel_id = int(channel_id)
+    key = str(channel_id)
+    titles = runtime_config.setdefault("channel_titles", {})
+
+    if not refresh and titles.get(key):
+        return titles[key]
+
+    try:
+        entity = await bot.get_entity(channel_id)
+        title = getattr(entity, "title", None)
+        if not title:
+            username = getattr(entity, "username", None)
+            if username:
+                title = f"@{username}"
+            else:
+                first = getattr(entity, "first_name", None) or ""
+                last = getattr(entity, "last_name", None) or ""
+                title = f"{first} {last}".strip() or key
+        titles[key] = title
+        save_runtime_config()
+        return title
+    except Exception as fetch_error:
+        print(f"Channel title lookup failed for {channel_id}: {fetch_error}")
+        fallback = titles.get(key) or f"Channel {key[-6:]}"
+        return fallback
+
+
+async def build_admin_pipeline_buttons(pipeline_key):
     pk = pipeline_key
     interval = runtime_config["interval_minutes"][pk]
     qty = runtime_config["post_qty"][pk]
@@ -347,6 +408,10 @@ def build_admin_pipeline_buttons(pipeline_key):
             Button.inline("30m", f"adm:i{pk}:30".encode()),
             Button.inline("45m", f"adm:i{pk}:45".encode()),
             Button.inline("60m", f"adm:i{pk}:60".encode()),
+        ],
+        [
+            Button.inline("120m", f"adm:i{pk}:120".encode()),
+            Button.inline("150m", f"adm:i{pk}:150".encode()),
         ],
         [
             Button.inline(f"📦 qty {qty} ✓", f"adm:q{pk}:{qty}".encode()),
@@ -362,7 +427,8 @@ def build_admin_pipeline_buttons(pipeline_key):
     disabled = pipeline_disabled_set(pk)
     for idx, channel_id in enumerate(pipeline_channels(pk)):
         mark = "✅" if channel_id not in disabled else "❌"
-        label = f"{mark} …{str(channel_id)[-6:]}"
+        channel_name = await fetch_channel_title(channel_id)
+        label = format_channel_button_label(mark, channel_id, channel_name)
         rows.append(
             [
                 Button.inline(label, f"adm:t{pk}:{idx}".encode()),
@@ -375,7 +441,7 @@ def build_admin_pipeline_buttons(pipeline_key):
     return rows
 
 
-def admin_pipeline_text(pipeline_key):
+async def admin_pipeline_text(pipeline_key):
     pk = pipeline_key
     lines = [
         f"**{admin_pipeline_title(pk)}**",
@@ -383,13 +449,27 @@ def admin_pipeline_text(pipeline_key):
         f"Interval: `{runtime_config['interval_minutes'][pk]}` min",
         f"Post qty: `{runtime_config['post_qty'][pk]}`",
         "",
-        "Tap ✅/❌ row to enable/disable posting.",
-        "🗑 removes channel from this set.",
-        "Commands still work: `/interval{pk}_30`, `/postqty{pk}_2`, `/addch{pk}_ID`, `/removech{pk}_ID`",
+        "**Channels:**",
     ]
+
+    disabled = pipeline_disabled_set(pk)
+    for channel_id in pipeline_channels(pk):
+        mark = "✅" if channel_id not in disabled else "❌"
+        channel_name = await fetch_channel_title(channel_id)
+        lines.append(format_channel_line(mark, channel_id, channel_name))
+
+    lines.extend(
+        [
+            "",
+            "Tap ✅/❌ on a channel name to enable/disable posting.",
+            "🗑 removes channel from this set.",
+        ]
+    )
     if pk == "1":
-        lines[-1] = (
-            "Commands: `/interval_30`, `/postqty_2`, `/addch1_ID`, `/removech1_ID`"
+        lines.append("Commands: `/interval_120`, `/postqty_2`, `/addch1_ID`")
+    else:
+        lines.append(
+            f"Commands: `/interval{pk}_120`, `/postqty{pk}_2`, `/addch{pk}_ID`"
         )
     return "\n".join(lines)
 
@@ -484,6 +564,7 @@ async def admin_menu(event):
     await event.respond(
         "**Admin panel** — pick a channel set to configure:",
         buttons=build_admin_main_buttons(),
+        parse_mode="md",
     )
 
 
@@ -512,8 +593,9 @@ async def admin_callback(event):
     if action.startswith("p") and len(action) == 2 and action[1] in "123":
         pipeline_key = action[1]
         await event.edit(
-            admin_pipeline_text(pipeline_key),
-            buttons=build_admin_pipeline_buttons(pipeline_key),
+            await admin_pipeline_text(pipeline_key),
+            buttons=await build_admin_pipeline_buttons(pipeline_key),
+            parse_mode="md",
         )
         await event.answer()
         return
@@ -523,8 +605,9 @@ async def admin_callback(event):
         minutes = int(parts[2])
         set_pipeline_interval(pipeline_key, minutes)
         await event.edit(
-            admin_pipeline_text(pipeline_key),
-            buttons=build_admin_pipeline_buttons(pipeline_key),
+            await admin_pipeline_text(pipeline_key),
+            buttons=await build_admin_pipeline_buttons(pipeline_key),
+            parse_mode="md",
         )
         await event.answer(f"Interval → {minutes} min")
         return
@@ -534,8 +617,9 @@ async def admin_callback(event):
         qty = int(parts[2])
         set_pipeline_post_qty(pipeline_key, qty)
         await event.edit(
-            admin_pipeline_text(pipeline_key),
-            buttons=build_admin_pipeline_buttons(pipeline_key),
+            await admin_pipeline_text(pipeline_key),
+            buttons=await build_admin_pipeline_buttons(pipeline_key),
+            parse_mode="md",
         )
         await event.answer(f"Post qty → {qty}")
         return
@@ -547,10 +631,19 @@ async def admin_callback(event):
         if idx < 0 or idx >= len(channels):
             await event.answer("Channel not found.", alert=True)
             return
-        ok, msg = toggle_pipeline_channel(pipeline_key, channels[idx])
+        ok, _ = toggle_pipeline_channel(pipeline_key, channels[idx])
+        channel_name = await fetch_channel_title(channels[idx])
+        if ok:
+            if channels[idx] in pipeline_disabled_set(pipeline_key):
+                msg = f"{channel_name}: posting off ❌"
+            else:
+                msg = f"{channel_name}: posting on ✅"
+        else:
+            msg = "Channel not in list"
         await event.edit(
-            admin_pipeline_text(pipeline_key),
-            buttons=build_admin_pipeline_buttons(pipeline_key),
+            await admin_pipeline_text(pipeline_key),
+            buttons=await build_admin_pipeline_buttons(pipeline_key),
+            parse_mode="md",
         )
         await event.answer(msg[:200], alert=not ok)
         return
@@ -562,10 +655,14 @@ async def admin_callback(event):
         if idx < 0 or idx >= len(channels):
             await event.answer("Channel not found.", alert=True)
             return
+        channel_name = await fetch_channel_title(channels[idx])
         ok, msg = remove_pipeline_channel(pipeline_key, channels[idx])
+        if ok:
+            msg = f"Removed {channel_name}"
         await event.edit(
-            admin_pipeline_text(pipeline_key),
-            buttons=build_admin_pipeline_buttons(pipeline_key),
+            await admin_pipeline_text(pipeline_key),
+            buttons=await build_admin_pipeline_buttons(pipeline_key),
+            parse_mode="md",
         )
         await event.answer(msg[:200], alert=not ok)
         return
@@ -603,10 +700,14 @@ async def admin_pending_input(event):
     pipeline_key = pending["pipeline"]
     del pending_admin_action[event.sender_id]
 
-    ok, msg = add_pipeline_channel(pipeline_key, int(text))
+    channel_id = int(text)
+    ok, msg = add_pipeline_channel(pipeline_key, channel_id)
+    if ok:
+        channel_name = await fetch_channel_title(channel_id, refresh=True)
+        msg = f"Added **{channel_name}**"
     await event.respond(
         msg,
-        buttons=build_admin_pipeline_buttons(pipeline_key),
+        buttons=await build_admin_pipeline_buttons(pipeline_key),
     )
 
 # =========================================================
