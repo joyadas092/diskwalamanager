@@ -1,7 +1,9 @@
 import os
 import re
+import json
 import asyncio
 import threading
+from pathlib import Path
 from flask import Flask
 
 from telethon import TelegramClient, events, Button
@@ -36,8 +38,8 @@ MASTER_CHANNEL_ID2 = -1003818431774
 # -------- PIPELINE 1 CHANNELS --------
 
 CHILD_CHANNEL_IDS = [
-    -1003925918191,
     -1003967952177,
+    -1004426679858,
     -1003662286694,
     -1003440216101,
     -1003509258780,
@@ -48,12 +50,12 @@ CHILD_CHANNEL_IDS = [
 # -------- PIPELINE 2 CHANNELS --------
 
 CHILD_CHANNEL_IDS_2 = [
+    -1004333853896,
     -1004332767188,
     -1003729451436,
     -1003852141524,
     -1004482717052,
     -1003315790833,
-    -1003900921028,
     -1003981620549,
     -1003655989898
 ]
@@ -62,9 +64,21 @@ CHILD_CHANNEL_IDS_2 = [
 
 CHILD_CHANNEL_IDS_3 = [
     -1004384690409,
-    -1003706132462
-    
+    -1003811817479    
 ]
+
+CONFIG_PATH = Path(__file__).resolve().parent / "bot_runtime_config.json"
+
+DEFAULT_RUNTIME_CONFIG = {
+    "channels": {
+        "1": list(CHILD_CHANNEL_IDS),
+        "2": list(CHILD_CHANNEL_IDS_2),
+        "3": list(CHILD_CHANNEL_IDS_3),
+    },
+    "disabled": {"1": [], "2": [], "3": []},
+    "interval_minutes": {"1": 30, "2": 30, "3": 60},
+    "post_qty": {"1": 1, "2": 1, "3": 2},
+}
 
 # ---------------- RUNTIME STATE ----------------
 
@@ -94,6 +108,10 @@ IS_RUNNING_3 = False
 # ---------------- OTHER ----------------
 
 LOG_USER_ID = 6796879431
+ADMIN_USER_ID = LOG_USER_ID
+
+runtime_config = {}
+pending_admin_action = {}
 
 # ---------------- TELETHON CLIENT ----------------
 
@@ -131,10 +149,257 @@ def extract_terabox_links(text):
         flags=re.IGNORECASE
     )
 
+
+def load_runtime_config():
+    global runtime_config
+
+    if CONFIG_PATH.is_file():
+        try:
+            with open(CONFIG_PATH, "r", encoding="utf-8") as cfg_file:
+                loaded = json.load(cfg_file)
+        except (json.JSONDecodeError, OSError) as load_error:
+            print(f"Config load failed, using defaults: {load_error}")
+            loaded = {}
+    else:
+        loaded = {}
+
+    merged = json.loads(json.dumps(DEFAULT_RUNTIME_CONFIG))
+    for pipeline_key in ("1", "2", "3"):
+        if pipeline_key in loaded.get("channels", {}):
+            merged["channels"][pipeline_key] = list(loaded["channels"][pipeline_key])
+        if pipeline_key in loaded.get("disabled", {}):
+            merged["disabled"][pipeline_key] = list(loaded["disabled"][pipeline_key])
+        if pipeline_key in loaded.get("interval_minutes", {}):
+            merged["interval_minutes"][pipeline_key] = int(
+                loaded["interval_minutes"][pipeline_key]
+            )
+        if pipeline_key in loaded.get("post_qty", {}):
+            merged["post_qty"][pipeline_key] = int(loaded["post_qty"][pipeline_key])
+
+    runtime_config = merged
+    sync_globals_from_config()
+    save_runtime_config()
+
+
+def save_runtime_config():
+    try:
+        with open(CONFIG_PATH, "w", encoding="utf-8") as cfg_file:
+            json.dump(runtime_config, cfg_file, indent=2)
+    except OSError as save_error:
+        print(f"Config save failed: {save_error}")
+
+
+def sync_globals_from_config():
+    global CHILD_CHANNEL_IDS, CHILD_CHANNEL_IDS_2, CHILD_CHANNEL_IDS_3
+    global INTERVAL_MINUTES, INTERVAL_MINUTES_2, INTERVAL_MINUTES_3
+    global POST_QTY, POST_QTY_2, POST_QTY_3
+
+    if not runtime_config:
+        return
+
+    CHILD_CHANNEL_IDS = list(runtime_config["channels"]["1"])
+    CHILD_CHANNEL_IDS_2 = list(runtime_config["channels"]["2"])
+    CHILD_CHANNEL_IDS_3 = list(runtime_config["channels"]["3"])
+
+    INTERVAL_MINUTES = runtime_config["interval_minutes"]["1"]
+    INTERVAL_MINUTES_2 = runtime_config["interval_minutes"]["2"]
+    INTERVAL_MINUTES_3 = runtime_config["interval_minutes"]["3"]
+
+    POST_QTY = runtime_config["post_qty"]["1"]
+    POST_QTY_2 = runtime_config["post_qty"]["2"]
+    POST_QTY_3 = runtime_config["post_qty"]["3"]
+
+
+def is_admin(user_id):
+    return user_id == ADMIN_USER_ID
+
+
+def pipeline_channels(pipeline_key):
+    return list(runtime_config["channels"][pipeline_key])
+
+
+def pipeline_disabled_set(pipeline_key):
+    return set(runtime_config["disabled"][pipeline_key])
+
+
+def pipeline_active_channels(pipeline_key):
+    disabled = pipeline_disabled_set(pipeline_key)
+    return [ch for ch in pipeline_channels(pipeline_key) if ch not in disabled]
+
+
+def set_pipeline_interval(pipeline_key, minutes):
+    runtime_config["interval_minutes"][pipeline_key] = int(minutes)
+    save_runtime_config()
+    sync_globals_from_config()
+
+
+def set_pipeline_post_qty(pipeline_key, qty):
+    runtime_config["post_qty"][pipeline_key] = max(1, int(qty))
+    save_runtime_config()
+    sync_globals_from_config()
+
+
+def toggle_pipeline_channel(pipeline_key, channel_id):
+    channel_id = int(channel_id)
+    channels = runtime_config["channels"][pipeline_key]
+    if channel_id not in channels:
+        return False, "Channel not in list"
+
+    disabled = runtime_config["disabled"][pipeline_key]
+    if channel_id in disabled:
+        disabled.remove(channel_id)
+        enabled = True
+    else:
+        disabled.append(channel_id)
+        enabled = False
+
+    save_runtime_config()
+    state = "enabled ✅" if enabled else "disabled ❌"
+    return True, f"`{channel_id}` {state}"
+
+
+def add_pipeline_channel(pipeline_key, channel_id):
+    channel_id = int(channel_id)
+    channels = runtime_config["channels"][pipeline_key]
+    if channel_id in channels:
+        return False, "Already in list"
+    channels.append(channel_id)
+    disabled = runtime_config["disabled"][pipeline_key]
+    if channel_id in disabled:
+        disabled.remove(channel_id)
+    save_runtime_config()
+    sync_globals_from_config()
+    return True, f"Added `{channel_id}`"
+
+
+def remove_pipeline_channel(pipeline_key, channel_id):
+    channel_id = int(channel_id)
+    channels = runtime_config["channels"][pipeline_key]
+    if channel_id not in channels:
+        return False, "Not in list"
+    channels.remove(channel_id)
+    disabled = runtime_config["disabled"][pipeline_key]
+    if channel_id in disabled:
+        disabled.remove(channel_id)
+    save_runtime_config()
+    sync_globals_from_config()
+    return True, f"Removed `{channel_id}`"
+
+
+async def source_channel_latest_msg_id(source_channel_id):
+    latest = await bot.get_messages(source_channel_id, limit=1)
+    if not latest:
+        return None
+    msg = latest[0] if isinstance(latest, list) else latest
+    if not msg or not getattr(msg, "id", None):
+        return None
+    return msg.id
+
+
+async def stop_at_source_end(running_flag_name, start_var_name, source_channel_id):
+    latest_id = await source_channel_latest_msg_id(source_channel_id)
+    current_msg_id = globals()[start_var_name]
+    if latest_id is None or current_msg_id is None:
+        return False
+
+    if current_msg_id > latest_id:
+        await report_issue(
+            f"🛑 Reached end of source channel for `{running_flag_name}`\n"
+            f"Last message id: `{latest_id}`\n"
+            f"Next start id: `{current_msg_id}`\n"
+            f"Pipeline auto-stopped (same as /stopbot)."
+        )
+        globals()[running_flag_name] = False
+        return True
+
+    return False
+
+
+def admin_pipeline_title(pipeline_key):
+    titles = {
+        "1": "Set 1 — Pipeline 1 (Diskwala)",
+        "2": "Set 2 — Pipeline 2 (Diskwala)",
+        "3": "Set 3 — Pipeline 3 (Terabox)",
+    }
+    return titles.get(pipeline_key, f"Set {pipeline_key}")
+
+
+def build_admin_main_buttons():
+    return [
+        [
+            Button.inline("📦 Set 1", b"adm:p1"),
+            Button.inline("📦 Set 2", b"adm:p2"),
+            Button.inline("📦 Set 3", b"adm:p3"),
+        ]
+    ]
+
+
+def build_admin_pipeline_buttons(pipeline_key):
+    pk = pipeline_key
+    interval = runtime_config["interval_minutes"][pk]
+    qty = runtime_config["post_qty"][pk]
+    rows = [
+        [
+            Button.inline(f"⏱ {interval}m ✓", f"adm:i{pk}:{interval}".encode()),
+        ],
+        [
+            Button.inline("15m", f"adm:i{pk}:15".encode()),
+            Button.inline("30m", f"adm:i{pk}:30".encode()),
+            Button.inline("45m", f"adm:i{pk}:45".encode()),
+            Button.inline("60m", f"adm:i{pk}:60".encode()),
+        ],
+        [
+            Button.inline(f"📦 qty {qty} ✓", f"adm:q{pk}:{qty}".encode()),
+        ],
+        [
+            Button.inline("1", f"adm:q{pk}:1".encode()),
+            Button.inline("2", f"adm:q{pk}:2".encode()),
+            Button.inline("3", f"adm:q{pk}:3".encode()),
+            Button.inline("5", f"adm:q{pk}:5".encode()),
+        ],
+    ]
+
+    disabled = pipeline_disabled_set(pk)
+    for idx, channel_id in enumerate(pipeline_channels(pk)):
+        mark = "✅" if channel_id not in disabled else "❌"
+        label = f"{mark} …{str(channel_id)[-6:]}"
+        rows.append(
+            [
+                Button.inline(label, f"adm:t{pk}:{idx}".encode()),
+                Button.inline("🗑", f"adm:r{pk}:{idx}".encode()),
+            ]
+        )
+
+    rows.append([Button.inline("➕ Add channel", f"adm:a{pk}".encode())])
+    rows.append([Button.inline("« Back", b"adm:home")])
+    return rows
+
+
+def admin_pipeline_text(pipeline_key):
+    pk = pipeline_key
+    lines = [
+        f"**{admin_pipeline_title(pk)}**",
+        "",
+        f"Interval: `{runtime_config['interval_minutes'][pk]}` min",
+        f"Post qty: `{runtime_config['post_qty'][pk]}`",
+        "",
+        "Tap ✅/❌ row to enable/disable posting.",
+        "🗑 removes channel from this set.",
+        "Commands still work: `/interval{pk}_30`, `/postqty{pk}_2`, `/addch{pk}_ID`, `/removech{pk}_ID`",
+    ]
+    if pk == "1":
+        lines[-1] = (
+            "Commands: `/interval_30`, `/postqty_2`, `/addch1_ID`, `/removech1_ID`"
+        )
+    return "\n".join(lines)
+
+
+load_runtime_config()
+
 MAIN_BUTTON = [
     [Button.url(
         "🔞 Join and See More 😉",
-        "https://t.me/Viral_diskwala_bot?start=1"
+        "https://t.me/Diskwala_Viral_bot?start=1"
     )]
 ]
 
@@ -151,8 +416,8 @@ TERABOX_BUTTON = [
 FOOTER_1 = """<b>🤔 How to Open Links? | लिंक कैसे खोलें 👇</b>
 <b><i><a href="https://t.me/howdisk/2">📖 View Tutorial</a></i></b>
 
-😉<b>Join Big Billion Deals</b>
-  https://t.me/+2IxPmIwTFrhlYmI1
+😉<b>Daily Trending. Open 👇</b>
+  bitly.cx/diskwala
 """
 # 𝑷𝒍𝒆𝒂𝒔𝒆 𝑱𝒐𝒊𝒏 Backup 𝑪𝒉𝒂𝒏𝒏𝒆𝒍𝒔 Must 🙏
 
@@ -161,8 +426,8 @@ FOOTER_1 = """<b>🤔 How to Open Links? | लिंक कैसे खोल�
 FOOTER_2 = """<b>🤔 How to Open Links? | लिंक कैसे खोलें 👇</b>
 <b><i><a href="https://t.me/howdisk/2">📖 View Tutorial</a></i></b>
 
-😉<b>Join Offers Channel</b>
-  https://t.me/+2IxPmIwTFrhlYmI1
+😉<b>Save this Link!⏬Visit Now</b>
+  bitly.cx/diskwala
 """
 
 # 🔥 𝑱𝒐𝒊𝒏 𝑩𝒂𝒄𝒌𝒖𝒑 𝑪𝒉𝒂𝒏𝒏𝒆𝒍 Must👇
@@ -180,11 +445,11 @@ FOOTER_2 = """<b>🤔 How to Open Links? | लिंक कैसे खोल�
 # 2. https://t.me/+A6ausbTNqyZkNGE1
 
 
-FOOTER_3 = """<b>🤔 How to Open Links? | लिंक कैसे खोलें 👇</b>
-<b><i><a href="https://t.me/howdisk/2">📖 View Tutorial</a></i></b>
+FOOTER_3 = """<b>🤔 ଲିଙ୍କ କେମିତି ଖୋଲିବେ? 👇</b>
+<b><i><a href="https://t.me/howdisk/2">📖 ଟ୍ୟୁଟୋରିଆଲ୍ ଦେଖନ୍ତୁ</a></i></b>
 
-😉<b>Join Big Billion Deals</b>
-  https://t.me/+2IxPmIwTFrhlYmI1
+😉<b>ଏହି ଲିଙ୍କଟି ସେଭ୍ କର! ⏬</b>
+  bitly.cx/diskwala
 """
 
 
@@ -210,6 +475,140 @@ https://t.me/viral_diskwala_bot
 
     await event.respond(txt)
 
+
+@bot.on(events.NewMessage(pattern=r"^/admin$"))
+async def admin_menu(event):
+    if not is_admin(event.sender_id):
+        return
+
+    await event.respond(
+        "**Admin panel** — pick a channel set to configure:",
+        buttons=build_admin_main_buttons(),
+    )
+
+
+@bot.on(events.CallbackQuery)
+async def admin_callback(event):
+    if not is_admin(event.sender_id):
+        await event.answer("Not allowed.", alert=True)
+        return
+
+    data = event.data.decode("utf-8")
+    parts = data.split(":")
+
+    if len(parts) < 2 or parts[0] != "adm":
+        return
+
+    action = parts[1]
+
+    if action == "home":
+        await event.edit(
+            "**Admin panel** — pick a channel set:",
+            buttons=build_admin_main_buttons(),
+        )
+        await event.answer()
+        return
+
+    if action.startswith("p") and len(action) == 2 and action[1] in "123":
+        pipeline_key = action[1]
+        await event.edit(
+            admin_pipeline_text(pipeline_key),
+            buttons=build_admin_pipeline_buttons(pipeline_key),
+        )
+        await event.answer()
+        return
+
+    if action.startswith("i") and len(parts) == 3:
+        pipeline_key = action[1]
+        minutes = int(parts[2])
+        set_pipeline_interval(pipeline_key, minutes)
+        await event.edit(
+            admin_pipeline_text(pipeline_key),
+            buttons=build_admin_pipeline_buttons(pipeline_key),
+        )
+        await event.answer(f"Interval → {minutes} min")
+        return
+
+    if action.startswith("q") and len(parts) == 3:
+        pipeline_key = action[1]
+        qty = int(parts[2])
+        set_pipeline_post_qty(pipeline_key, qty)
+        await event.edit(
+            admin_pipeline_text(pipeline_key),
+            buttons=build_admin_pipeline_buttons(pipeline_key),
+        )
+        await event.answer(f"Post qty → {qty}")
+        return
+
+    if action.startswith("t") and len(parts) == 3:
+        pipeline_key = action[1]
+        idx = int(parts[2])
+        channels = pipeline_channels(pipeline_key)
+        if idx < 0 or idx >= len(channels):
+            await event.answer("Channel not found.", alert=True)
+            return
+        ok, msg = toggle_pipeline_channel(pipeline_key, channels[idx])
+        await event.edit(
+            admin_pipeline_text(pipeline_key),
+            buttons=build_admin_pipeline_buttons(pipeline_key),
+        )
+        await event.answer(msg[:200], alert=not ok)
+        return
+
+    if action.startswith("r") and len(parts) == 3:
+        pipeline_key = action[1]
+        idx = int(parts[2])
+        channels = pipeline_channels(pipeline_key)
+        if idx < 0 or idx >= len(channels):
+            await event.answer("Channel not found.", alert=True)
+            return
+        ok, msg = remove_pipeline_channel(pipeline_key, channels[idx])
+        await event.edit(
+            admin_pipeline_text(pipeline_key),
+            buttons=build_admin_pipeline_buttons(pipeline_key),
+        )
+        await event.answer(msg[:200], alert=not ok)
+        return
+
+    if action.startswith("a") and len(action) == 2 and action[1] in "123":
+        pipeline_key = action[1]
+        pending_admin_action[event.sender_id] = {
+            "action": "add_channel",
+            "pipeline": pipeline_key,
+        }
+        await event.answer("Send channel id (e.g. -1001234567890)", alert=True)
+        return
+
+
+@bot.on(events.NewMessage)
+async def admin_pending_input(event):
+    if not is_admin(event.sender_id):
+        return
+
+    pending = pending_admin_action.get(event.sender_id)
+    if not pending:
+        return
+
+    text = (event.raw_text or "").strip()
+    if text.startswith("/"):
+        return
+
+    match = re.match(r"^-?\d+$", text)
+    if not match:
+        return
+
+    if pending.get("action") != "add_channel":
+        return
+
+    pipeline_key = pending["pipeline"]
+    del pending_admin_action[event.sender_id]
+
+    ok, msg = add_pipeline_channel(pipeline_key, int(text))
+    await event.respond(
+        msg,
+        buttons=build_admin_pipeline_buttons(pipeline_key),
+    )
+
 # =========================================================
 # ================= PIPELINE 1 COMMANDS ===================
 # =========================================================
@@ -231,6 +630,7 @@ async def interval(event):
     global INTERVAL_MINUTES
 
     INTERVAL_MINUTES = int(event.pattern_match.group(1))
+    set_pipeline_interval("1", INTERVAL_MINUTES)
 
     await event.respond(
         f"⏱ Pipeline1 Interval = {INTERVAL_MINUTES}"
@@ -242,6 +642,7 @@ async def postqty(event):
     global POST_QTY
 
     POST_QTY = int(event.pattern_match.group(1))
+    set_pipeline_post_qty("1", POST_QTY)
 
     await event.respond(
         f"📦 Pipeline1 Qty = {POST_QTY}"
@@ -260,12 +661,16 @@ async def run_cmd(event):
         await event.respond("⚠️ Pipeline1 already running")
         return
 
+    if not pipeline_active_channels("1"):
+        await event.respond("No active channels (check /admin Set 1)")
+        return
+
     IS_RUNNING = True
 
     asyncio.create_task(
         run_pipeline(
+            pipeline_key="1",
             source_channel_id=MASTER_CHANNEL_ID,
-            child_channels=CHILD_CHANNEL_IDS,
             start_var_name="START_FROM_MSG_ID",
             interval_var_name="INTERVAL_MINUTES",
             post_qty_var_name="POST_QTY",
@@ -287,8 +692,24 @@ async def stop_cmd(event):
 
     await event.respond("🛑 Pipeline1 stopped")
 
+
+@bot.on(events.NewMessage(pattern=r"^/addch1_(-?\d+)$"))
+async def addch1(event):
+    if not is_admin(event.sender_id):
+        return
+    ok, msg = add_pipeline_channel("1", int(event.pattern_match.group(1)))
+    await event.respond(msg)
+
+
+@bot.on(events.NewMessage(pattern=r"^/removech1_(-?\d+)$"))
+async def removech1(event):
+    if not is_admin(event.sender_id):
+        return
+    ok, msg = remove_pipeline_channel("1", int(event.pattern_match.group(1)))
+    await event.respond(msg)
+
 # =========================================================
-# ================= PIPELINE 2 COMMANDS ========send_file===========
+# ================= PIPELINE 2 COMMANDS ===================
 # =========================================================
 
 @bot.on(events.NewMessage(pattern=r"^/startfrom2_(\d+)$"))
@@ -308,6 +729,7 @@ async def interval2(event):
     global INTERVAL_MINUTES_2
 
     INTERVAL_MINUTES_2 = int(event.pattern_match.group(1))
+    set_pipeline_interval("2", INTERVAL_MINUTES_2)
 
     await event.respond(
         f"⏱ Pipeline2 Interval = {INTERVAL_MINUTES_2}"
@@ -319,6 +741,7 @@ async def postqty2(event):
     global POST_QTY_2
 
     POST_QTY_2 = int(event.pattern_match.group(1))
+    set_pipeline_post_qty("2", POST_QTY_2)
 
     await event.respond(
         f"📦 Pipeline2 Qty = {POST_QTY_2}"
@@ -337,12 +760,16 @@ async def run2(event):
         await event.respond("⚠️ Pipeline2 already running")
         return
 
+    if not pipeline_active_channels("2"):
+        await event.respond("No active channels (check /admin Set 2)")
+        return
+
     IS_RUNNING_2 = True
 
     asyncio.create_task(
         run_pipeline(
+            pipeline_key="2",
             source_channel_id=MASTER_CHANNEL_ID,
-            child_channels=CHILD_CHANNEL_IDS_2,
             start_var_name="START_FROM_MSG_ID_2",
             interval_var_name="INTERVAL_MINUTES_2",
             post_qty_var_name="POST_QTY_2",
@@ -363,6 +790,22 @@ async def stopbot2(event):
     IS_RUNNING_2 = False
 
     await event.respond("🛑 Pipeline2 stopped")
+
+
+@bot.on(events.NewMessage(pattern=r"^/addch2_(-?\d+)$"))
+async def addch2(event):
+    if not is_admin(event.sender_id):
+        return
+    ok, msg = add_pipeline_channel("2", int(event.pattern_match.group(1)))
+    await event.respond(msg)
+
+
+@bot.on(events.NewMessage(pattern=r"^/removech2_(-?\d+)$"))
+async def removech2(event):
+    if not is_admin(event.sender_id):
+        return
+    ok, msg = remove_pipeline_channel("2", int(event.pattern_match.group(1)))
+    await event.respond(msg)
 
 # =========================================================
 # ================= PIPELINE 3 TERABOX COMMANDS ===========
@@ -385,6 +828,7 @@ async def interval3(event):
     global INTERVAL_MINUTES_3
 
     INTERVAL_MINUTES_3 = int(event.pattern_match.group(1))
+    set_pipeline_interval("3", INTERVAL_MINUTES_3)
 
     await event.respond(
         f"Pipeline3 Terabox Interval = {INTERVAL_MINUTES_3}"
@@ -396,6 +840,7 @@ async def postqty3(event):
     global POST_QTY_3
 
     POST_QTY_3 = int(event.pattern_match.group(1))
+    set_pipeline_post_qty("3", POST_QTY_3)
 
     await event.respond(
         f"Pipeline3 Terabox Qty = {POST_QTY_3}"
@@ -431,8 +876,8 @@ async def run3(event):
         await event.respond("Set /startfrom3_<id> first")
         return
 
-    if not CHILD_CHANNEL_IDS_3:
-        await event.respond("No Terabox child channels configured in CHILD_CHANNEL_IDS_3")
+    if not pipeline_active_channels("3"):
+        await event.respond("No active Terabox child channels (check /admin Set 3)")
         return
 
     if IS_RUNNING_3:
@@ -443,14 +888,13 @@ async def run3(event):
 
     asyncio.create_task(
         run_pipeline(
+            pipeline_key="3",
             source_channel_id=MASTER_CHANNEL_ID2,
-            child_channels=CHILD_CHANNEL_IDS_3,
             start_var_name="START_FROM_MSG_ID_3",
             interval_var_name="INTERVAL_MINUTES_3",
             post_qty_var_name="POST_QTY_3",
             footer_text=FOOTER_3,
             running_flag_name="IS_RUNNING_3",
-            # link_extractor=extract_terabox_links,
             link_extractor=extract_diskwala_links,
             buttons=TERABOX_BUTTON,
         )
@@ -467,13 +911,29 @@ async def stopbot3(event):
 
     await event.respond("Pipeline3 Terabox stopped")
 
+
+@bot.on(events.NewMessage(pattern=r"^/addch3_(-?\d+)$"))
+async def addch3(event):
+    if not is_admin(event.sender_id):
+        return
+    ok, msg = add_pipeline_channel("3", int(event.pattern_match.group(1)))
+    await event.respond(msg)
+
+
+@bot.on(events.NewMessage(pattern=r"^/removech3_(-?\d+)$"))
+async def removech3(event):
+    if not is_admin(event.sender_id):
+        return
+    ok, msg = remove_pipeline_channel("3", int(event.pattern_match.group(1)))
+    await event.respond(msg)
+
 # =========================================================
 # ==================== MAIN PIPELINE ======================
 # =========================================================
 
 async def run_pipeline(
+    pipeline_key,
     source_channel_id,
-    child_channels,
     start_var_name,
     interval_var_name,
     post_qty_var_name,
@@ -483,10 +943,12 @@ async def run_pipeline(
     buttons,
 ):
 
+    child_channels = pipeline_active_channels(pipeline_key)
+
     if not child_channels:
 
         await report_issue(
-            f"❌ No child channels configured for {running_flag_name}"
+            f"❌ No active child channels for {running_flag_name} (Set {pipeline_key})"
         )
 
         globals()[running_flag_name] = False
@@ -494,8 +956,12 @@ async def run_pipeline(
 
     child_index = 0
     disabled_channels = set()
+    config_disabled = pipeline_disabled_set(pipeline_key)
 
     while globals()[running_flag_name]:
+
+        child_channels = pipeline_active_channels(pipeline_key)
+        config_disabled = pipeline_disabled_set(pipeline_key)
 
         # 🔥 LIVE VALUES
         current_msg_id = globals()[start_var_name]
@@ -506,18 +972,23 @@ async def run_pipeline(
             await asyncio.sleep(5)
             continue
 
+        if await stop_at_source_end(
+            running_flag_name, start_var_name, source_channel_id
+        ):
+            return
+
         if not child_channels:
 
             await report_issue(
-                f"❌ No channels remaining for {running_flag_name}"
+                f"❌ No active channels for {running_flag_name} (Set {pipeline_key})"
             )
 
             globals()[running_flag_name] = False
             return
 
-        target = child_channels[child_index]
+        target = child_channels[child_index % len(child_channels)]
 
-        if target in disabled_channels:
+        if target in disabled_channels or target in config_disabled:
 
             child_index += 1
 
@@ -533,6 +1004,11 @@ async def run_pipeline(
 
             try:
 
+                if await stop_at_source_end(
+                    running_flag_name, start_var_name, source_channel_id
+                ):
+                    return
+
                 msg = await bot.get_messages(
                     source_channel_id,
                     ids=current_msg_id
@@ -541,6 +1017,10 @@ async def run_pipeline(
                 if not msg:
                     current_msg_id += 1
                     globals()[start_var_name] = current_msg_id
+                    if await stop_at_source_end(
+                        running_flag_name, start_var_name, source_channel_id
+                    ):
+                        return
                     continue
 
                 text = msg.text or msg.caption
