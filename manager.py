@@ -12,6 +12,8 @@ from telethon.errors import (
     PeerIdInvalidError,
     ChannelPrivateError,
     ChatWriteForbiddenError,
+    ChatRestrictedError,
+    UserBannedInChannelError,
     BotMethodInvalidError,
 )
 from telethon.tl.types import (
@@ -342,6 +344,57 @@ async def notify_source_id_exhausted(
         f"Likely past last post — set a new start id or use /stopbot."
     )
     globals()[running_flag_name] = False
+
+
+CHANNEL_POST_FAILURES = (
+    PeerIdInvalidError,
+    ChannelPrivateError,
+    ChatWriteForbiddenError,
+    ChatRestrictedError,
+    UserBannedInChannelError,
+)
+
+
+async def deliver_post_to_channel(target, msg, new_text, selected_button):
+    """Send to one child channel; text-only fallback if media is restricted."""
+    if isinstance(msg.media, (MessageMediaPhoto, MessageMediaDocument)):
+        try:
+            await bot.send_file(
+                target,
+                msg.media,
+                caption=new_text,
+                buttons=selected_button,
+                parse_mode="html",
+            )
+            return
+        except ChatRestrictedError:
+            print(f"Media restricted in {target}, sending text-only")
+
+    await bot.send_message(
+        target,
+        new_text,
+        buttons=selected_button,
+        parse_mode="html",
+        link_preview=True,
+    )
+
+
+async def mark_posting_channel_failed(
+    pipeline_key, target, running_flag_name, disabled_channels, error
+):
+    disabled_channels.add(target)
+    channel_id = int(target)
+    config_disabled = runtime_config["disabled"][pipeline_key]
+    if channel_id not in config_disabled:
+        config_disabled.append(channel_id)
+        save_runtime_config()
+
+    await report_issue(
+        f"❌ Skipping channel `{target}` for `{running_flag_name}`\n"
+        f"{type(error).__name__}: {error}\n"
+        f"Turned off in /admin (✅ to re-enable when fixed)."
+    )
+    print(f"Skipped {target}: {error}")
 
 
 def admin_pipeline_title(pipeline_key):
@@ -1177,6 +1230,8 @@ async def _run_pipeline_loop(
 
         while sent_count < post_qty and globals()[running_flag_name]:
 
+            send_started = False
+
             try:
 
                 msg = await fetch_source_message(
@@ -1227,45 +1282,10 @@ async def _run_pipeline_loop(
                 selected_button = buttons
 
                 # -------- SEND --------
-
-                # if msg.media:
-                #
-                #     await bot.send_file(
-                #         target,
-                #         msg.media,
-                #         caption=new_text,
-                #         buttons=selected_button,
-                #         parse_mode="html"
-                #     )
-                #
-                # else:
-                #
-                #     await bot.send_message(
-                #         target,
-                #         new_text,
-                #         buttons=selected_button,
-                #         parse_mode="html"
-                #     )
-                if isinstance(msg.media, (MessageMediaPhoto, MessageMediaDocument)):
-
-                    await bot.send_file(
-                        target,
-                        msg.media,
-                        caption=new_text,
-                        buttons=selected_button,
-                        parse_mode="html"
-                    )
-
-                # Text OR webpage preview (Terabox/Diskwala link only)
-                else:
-
-                    await bot.send_message(
-                        target,
-                        new_text,
-                        buttons=selected_button,
-                        parse_mode="html",
-                        link_preview=True
-                    )
+                send_started = True
+                await deliver_post_to_channel(
+                    target, msg, new_text, selected_button
+                )
                 print(
                     f"[{running_flag_name}] Posted {current_msg_id} → {target}"
                 )
@@ -1284,21 +1304,15 @@ async def _run_pipeline_loop(
 
                 await asyncio.sleep(e.seconds)
 
-            except (
-                PeerIdInvalidError,
-                ChannelPrivateError,
-                ChatWriteForbiddenError
-            ) as e:
+            except CHANNEL_POST_FAILURES as e:
 
-                disabled_channels.add(target)
-
-                await report_issue(
-                    f"❌ Disabled channel `{target}`\n"
-                    f"{type(e).__name__}: {e}"
+                await mark_posting_channel_failed(
+                    pipeline_key,
+                    target,
+                    running_flag_name,
+                    disabled_channels,
+                    e,
                 )
-
-                print(f"Disabled {target}: {e}")
-
                 break
 
             except BotMethodInvalidError as e:
@@ -1316,8 +1330,18 @@ async def _run_pipeline_loop(
                     f"Error msg {current_msg_id} → {target}: {e}"
                 )
 
+                if send_started:
+                    await mark_posting_channel_failed(
+                        pipeline_key,
+                        target,
+                        running_flag_name,
+                        disabled_channels,
+                        e,
+                    )
+                    break
+
                 await report_issue(
-                    f"⚠️ Error on `{current_msg_id}` → `{target}`\n"
+                    f"⚠️ Error on source msg `{current_msg_id}` (not sent)\n"
                     f"{type(e).__name__}: {e}"
                 )
 
