@@ -40,13 +40,12 @@ MASTER_CHANNEL_ID2 = -1003818431774
 # -------- PIPELINE 1 CHANNELS --------
 
 CHILD_CHANNEL_IDS = [
-    -1003967952177,
-    -1004426679858,
     -1003662286694,
     -1003440216101,
     -1003509258780,
     -1003610491355,
     -1003471521632,
+    -1003981620549
 ]
 
 # -------- PIPELINE 2 CHANNELS --------
@@ -57,7 +56,6 @@ CHILD_CHANNEL_IDS_2 = [
     -1003852141524,
     -1004482717052,
     -1003315790833,
-    -1003981620549,
     -1003655989898
 ]
 
@@ -65,7 +63,9 @@ CHILD_CHANNEL_IDS_2 = [
 
 CHILD_CHANNEL_IDS_3 = [
     -1004384690409,
-    -1003811817479    
+    -1004357248388,
+    -1003882375411,
+    -1003786388714
 ]
 
 CONFIG_PATH = Path(__file__).resolve().parent / "bot_runtime_config.json"
@@ -582,8 +582,8 @@ TERABOX_BUTTON = [
 FOOTER_1 = """<b>🤔 How to Open Links? | लिंक कैसे खोलें 👇</b>
 <b><i><a href="https://t.me/howdisk/2">📖 View Tutorial</a></i></b>
 
-😉<b>Daily Trending. Open 👇</b>
-  bitly.cx/diskwala
+😉<b>Join Backup Must 👇</b>
+  t.me/+zSaZL31c2EM5N2E9
 """
 # 𝑷𝒍𝒆𝒂𝒔𝒆 𝑱𝒐𝒊𝒏 Backup 𝑪𝒉𝒂𝒏𝒏𝒆𝒍𝒔 Must 🙏
 
@@ -592,8 +592,8 @@ FOOTER_1 = """<b>🤔 How to Open Links? | लिंक कैसे खोल�
 FOOTER_2 = """<b>🤔 How to Open Links? | लिंक कैसे खोलें 👇</b>
 <b><i><a href="https://t.me/howdisk/2">📖 View Tutorial</a></i></b>
 
-😉<b>Save this Link!⏬Visit Now</b>
-  bitly.cx/diskwala
+😉<b>Join Backup Must 👇</b>
+  t.me/+zSaZL31c2EM5N2E9
 """
 
 # 🔥 𝑱𝒐𝒊𝒏 𝑩𝒂𝒄𝒌𝒖𝒑 𝑪𝒉𝒂𝒏𝒏𝒆𝒍 Must👇
@@ -611,12 +611,20 @@ FOOTER_2 = """<b>🤔 How to Open Links? | लिंक कैसे खोल�
 # 2. https://t.me/+A6ausbTNqyZkNGE1
 
 
-FOOTER_3 = """<b>🤔 ଲିଙ୍କ କେମିତି ଖୋଲିବେ? 👇</b>
-<b><i><a href="https://t.me/howdisk/2">📖 ଟ୍ୟୁଟୋରିଆଲ୍ ଦେଖନ୍ତୁ</a></i></b>
+FOOTER_3 ="""<b>🤔 How to Open Links? | लिंक कैसे खोलें 👇</b>
+<b><i><a href="https://t.me/howdisk/2">📖 View Tutorial</a></i></b>
 
-😉<b>ଏହି ଲିଙ୍କଟି ସେଭ୍ କର! ⏬</b>
-  bitly.cx/diskwala
+😉<b>Join Backup Must 👇</b>
+  t.me/+zSaZL31c2EM5N2E9
 """
+
+
+# """<b>🤔 ଲିଙ୍କ କେମିତି ଖୋଲିବେ? 👇</b>
+# <b><i><a href="https://t.me/howdisk/2">📖 ଟ୍ୟୁଟୋରିଆଲ୍ ଦେଖନ୍ତୁ</a></i></b>
+
+# 😉<b>ଏହି ଲିଙ୍କଟି ସେଭ୍ କର! ⏬</b>
+#   bitly.cx/diskwala
+# """
 
 
 def build_run_pipeline_kwargs(pipeline_key):
@@ -646,7 +654,7 @@ def build_run_pipeline_kwargs(pipeline_key):
         }
     return {
         "pipeline_key": "3",
-        "source_channel_id": MASTER_CHANNEL_ID2,
+        "source_channel_id": MASTER_CHANNEL_ID,
         "start_var_name": "START_FROM_MSG_ID_3",
         "interval_var_name": "INTERVAL_MINUTES_3",
         "post_qty_var_name": "POST_QTY_3",
