@@ -80,6 +80,7 @@ DEFAULT_RUNTIME_CONFIG = {
     "interval_minutes": {"1": 30, "2": 30, "3": 60},
     "post_qty": {"1": 1, "2": 1, "3": 2},
     "start_msg_id": {"1": None, "2": None, "3": None},
+    "last_posted_id": {"1": None, "2": None, "3": None},
     "channel_titles": {},
 }
 
@@ -186,6 +187,9 @@ def load_runtime_config():
         start_ids = loaded.get("start_msg_id", {})
         if pipeline_key in start_ids and start_ids[pipeline_key] is not None:
             merged["start_msg_id"][pipeline_key] = int(start_ids[pipeline_key])
+        last_ids = loaded.get("last_posted_id", {})
+        if pipeline_key in last_ids and last_ids[pipeline_key] is not None:
+            merged["last_posted_id"][pipeline_key] = int(last_ids[pipeline_key])
 
     if isinstance(loaded.get("channel_titles"), dict):
         merged["channel_titles"] = {
@@ -234,17 +238,46 @@ def sync_globals_from_config():
 
 
 def set_pipeline_start_id(pipeline_key, message_id):
+    pipeline_key = str(pipeline_key)
     message_id = int(message_id)
     runtime_config.setdefault("start_msg_id", {"1": None, "2": None, "3": None})[
         pipeline_key
     ] = message_id
+    runtime_config.setdefault("last_posted_id", {"1": None, "2": None, "3": None})[
+        pipeline_key
+    ] = None
     save_runtime_config()
     sync_globals_from_config()
 
 
 def get_pipeline_start_id(pipeline_key):
     start_ids = runtime_config.get("start_msg_id", {})
-    return start_ids.get(pipeline_key)
+    return start_ids.get(str(pipeline_key))
+
+
+def set_pipeline_last_posted_id(pipeline_key, message_id):
+    pipeline_key = str(pipeline_key)
+    runtime_config.setdefault("last_posted_id", {"1": None, "2": None, "3": None})[
+        pipeline_key
+    ] = int(message_id)
+    save_runtime_config()
+
+
+def get_pipeline_last_posted_id(pipeline_key):
+    last_ids = runtime_config.get("last_posted_id", {})
+    return last_ids.get(str(pipeline_key))
+
+
+def get_pipeline_current_msg_id(pipeline_key):
+    var_map = {
+        "1": "START_FROM_MSG_ID",
+        "2": "START_FROM_MSG_ID_2",
+        "3": "START_FROM_MSG_ID_3",
+    }
+    var_name = var_map.get(str(pipeline_key))
+    if var_name:
+        return globals().get(var_name)
+    return None
 
 
 def pipeline_is_running(pipeline_key):
@@ -337,9 +370,13 @@ async def notify_source_id_exhausted(
     running_flag_name, start_var_name, miss_streak, source_channel_id
 ):
     current_msg_id = globals()[start_var_name]
+    pipeline_key = "1" if running_flag_name == "IS_RUNNING" else ("2" if "2" in running_flag_name else "3")
+    last_posted = get_pipeline_last_posted_id(pipeline_key)
+    last_posted_line = f"\nLast posted msg id: `{last_posted}`" if last_posted is not None else ""
     await report_issue(
         f"🛑 `{running_flag_name}` auto-stopped\n"
-        f"No message at `{miss_streak}` ids in a row (from `{current_msg_id - miss_streak}`).\n"
+        f"No message at `{miss_streak}` ids in a row (from `{current_msg_id - miss_streak}`)."
+        f"{last_posted_line}\n"
         f"Source: `{source_channel_id}`\n"
         f"Likely past last post — set a new start id or use /stopbot."
     )
@@ -524,19 +561,47 @@ async def build_admin_pipeline_buttons(pipeline_key):
 
 
 async def admin_pipeline_text(pipeline_key):
-    pk = pipeline_key
+    pk = str(pipeline_key)
     start_id = get_pipeline_start_id(pk)
+    last_posted_id = get_pipeline_last_posted_id(pk)
+    current_scan_id = get_pipeline_current_msg_id(pk)
     running_label = "🟢 Running" if pipeline_is_running(pk) else "⚪ Stopped"
     lines = [
         f"**{admin_pipeline_title(pk)}**",
         "",
         f"Status: {running_label}",
         f"Start msg id: `{start_id if start_id is not None else 'not set'}`",
-        f"Interval: `{runtime_config['interval_minutes'][pk]}` min",
-        f"Post qty: `{runtime_config['post_qty'][pk]}`",
-        "",
-        "**Channels:**",
+        f"Last posted id: `{last_posted_id if last_posted_id is not None else 'None yet'}`",
     ]
+
+    if pipeline_is_running(pk) and current_scan_id is not None:
+        lines.append(f"Current scan id: `{current_scan_id}`")
+
+    try:
+        source_id = MASTER_CHANNEL_ID if pk in ("1", "2") else MASTER_CHANNEL_ID2
+        latest_msgs = await bot.get_messages(source_id, limit=1)
+        if latest_msgs:
+            src_latest = latest_msgs[0].id
+            lines.append(f"Source latest id: `{src_latest}`")
+            ref_id = (
+                current_scan_id
+                if (current_scan_id is not None and pipeline_is_running(pk))
+                else (last_posted_id or start_id)
+            )
+            if ref_id is not None:
+                rem = max(0, src_latest - ref_id)
+                lines.append(f"Remaining msgs: `~{rem}`")
+    except Exception:
+        pass
+
+    lines.extend(
+        [
+            f"Interval: `{runtime_config['interval_minutes'][pk]}` min",
+            f"Post qty: `{runtime_config['post_qty'][pk]}`",
+            "",
+            "**Channels:**",
+        ]
+    )
 
     disabled = pipeline_disabled_set(pk)
     for channel_id in pipeline_channels(pk):
@@ -565,30 +630,26 @@ load_runtime_config()
 MAIN_BUTTON = [
     [Button.url(
         "🔞 Join and See More 😉",
-        "https://t.me/Diskwala_Viral_bot?start=1"
+        "https://t.me/Viral_diskwala_bot?start=1"
     )]
 ]
 
 TERABOX_BUTTON = [
     [Button.url(
         "🥵 See Other Channels ⏬",
-        "https://t.me/Diskwala_Viral_bot?start=1"
+        "https://t.me/Viral_diskwala_bot?start=1"
     )]
 ]
 
 
 
-# -------- FOOTERS --------
 FOOTER_1 = """<b>🤔 How to Open Links? | लिंक कैसे खोलें 👇</b>
 <b><i><a href="https://t.me/howdisk/2">📖 View Tutorial</a></i></b>
 
 😉<b>Join Backup Must 👇</b>
   t.me/+zSaZL31c2EM5N2E9
 """
-# 𝑷𝒍𝒆𝒂𝒔𝒆 𝑱𝒐𝒊𝒏 Backup 𝑪𝒉𝒂𝒏𝒏𝒆𝒍𝒔 Must 🙏
 
-# 1. https://t.me/+vnLPLvMn8vQxMDVl
-# 2. https://t.me/+P-MVSzKF3hsxMjA1
 FOOTER_2 = """<b>🤔 How to Open Links? | लिंक कैसे खोलें 👇</b>
 <b><i><a href="https://t.me/howdisk/2">📖 View Tutorial</a></i></b>
 
@@ -596,35 +657,12 @@ FOOTER_2 = """<b>🤔 How to Open Links? | लिंक कैसे खोल�
   t.me/+zSaZL31c2EM5N2E9
 """
 
-# 🔥 𝑱𝒐𝒊𝒏 𝑩𝒂𝒄𝒌𝒖𝒑 𝑪𝒉𝒂𝒏𝒏𝒆𝒍 Must👇
-
-# 1. https://t.me/+A6ausbTNqyZkNGE1
-# 2. https://t.me/+vnLPLvMn8vQxMDVl
-# FOOTER_3 = """<b><i><a href="https://t.me/Diskwala_Viral_bot?start=1">📖 View Diskwala Channels</a></i></b>
-
-# 😉<b>Daily Video ⏬Open</b>
-#  bitly.cx/diskwala
-# """
-# 🔥 𝑱𝒐𝒊𝒏 𝑩𝒂𝒄𝒌𝒖𝒑 𝑪𝒉𝒂𝒏𝒏𝒆𝒍 Must👇
-
-# 1. https://t.me/+vnLPLvMn8vQxMDVl
-# 2. https://t.me/+A6ausbTNqyZkNGE1
-
-
 FOOTER_3 ="""<b>🤔 How to Open Links? | लिंक कैसे खोलें 👇</b>
 <b><i><a href="https://t.me/howdisk/2">📖 View Tutorial</a></i></b>
 
 😉<b>Join Backup Must 👇</b>
   t.me/+zSaZL31c2EM5N2E9
 """
-
-
-# """<b>🤔 ଲିଙ୍କ କେମିତି ଖୋଲିବେ? 👇</b>
-# <b><i><a href="https://t.me/howdisk/2">📖 ଟ୍ୟୁଟୋରିଆଲ୍ ଦେଖନ୍ତୁ</a></i></b>
-
-# 😉<b>ଏହି ଲିଙ୍କଟି ସେଭ୍ କର! ⏬</b>
-#   bitly.cx/diskwala
-# """
 
 
 def build_run_pipeline_kwargs(pipeline_key):
@@ -654,7 +692,7 @@ def build_run_pipeline_kwargs(pipeline_key):
         }
     return {
         "pipeline_key": "3",
-        "source_channel_id": MASTER_CHANNEL_ID,
+        "source_channel_id": MASTER_CHANNEL_ID2,
         "start_var_name": "START_FROM_MSG_ID_3",
         "interval_var_name": "INTERVAL_MINUTES_3",
         "post_qty_var_name": "POST_QTY_3",
@@ -1299,6 +1337,7 @@ async def _run_pipeline_loop(
                 )
 
                 sent_count += 1
+                set_pipeline_last_posted_id(pipeline_key, current_msg_id)
                 current_msg_id += 1
 
                 # 🔥 LIVE UPDATE START ID
