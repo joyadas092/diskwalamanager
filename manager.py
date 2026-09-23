@@ -80,6 +80,7 @@ DEFAULT_RUNTIME_CONFIG = {
     "interval_minutes": {"1": 30, "2": 30, "3": 60},
     "post_qty": {"1": 1, "2": 1, "3": 2},
     "start_msg_id": {"1": None, "2": None, "3": None},
+    "current_msg_id": {"1": None, "2": None, "3": None},
     "last_posted_id": {"1": None, "2": None, "3": None},
     "channel_titles": {},
 }
@@ -107,8 +108,10 @@ INTERVAL_MINUTES_3 = 60
 POST_QTY_3 = 2
 IS_RUNNING_3 = False
 
-# Consecutive missing message ids → treat as past end of source (no GetHistory API).
-SOURCE_ID_MISS_LIMIT = 40
+PIPELINE_TASKS = {"1": None, "2": None, "3": None}
+
+# Consecutive missing message ids fallback limit if source end cannot be queried.
+SOURCE_ID_MISS_LIMIT = 150
 
 LOG_USER_ID = 6796879431
 ADMIN_USER_ID = LOG_USER_ID
@@ -127,6 +130,17 @@ async def fetch_source_message(source_channel_id, message_id):
     if isinstance(result, list):
         return result[0] if result else None
     return result
+
+
+async def get_source_latest_message_id(source_channel_id):
+    """Fetch the latest message ID currently in the source channel."""
+    try:
+        result = await bot.get_messages(source_channel_id, limit=1)
+        if result and len(result) > 0:
+            return result[0].id
+    except Exception as err:
+        print(f"Failed to fetch latest source id from {source_channel_id}: {err}")
+    return None
 
 # ---------------- FLASK KEEP ALIVE ----------------
 
@@ -187,6 +201,9 @@ def load_runtime_config():
         start_ids = loaded.get("start_msg_id", {})
         if pipeline_key in start_ids and start_ids[pipeline_key] is not None:
             merged["start_msg_id"][pipeline_key] = int(start_ids[pipeline_key])
+        curr_ids = loaded.get("current_msg_id", {})
+        if pipeline_key in curr_ids and curr_ids[pipeline_key] is not None:
+            merged["current_msg_id"][pipeline_key] = int(curr_ids[pipeline_key])
         last_ids = loaded.get("last_posted_id", {})
         if pipeline_key in last_ids and last_ids[pipeline_key] is not None:
             merged["last_posted_id"][pipeline_key] = int(last_ids[pipeline_key])
@@ -232,9 +249,15 @@ def sync_globals_from_config():
     POST_QTY_3 = runtime_config["post_qty"]["3"]
 
     start_ids = runtime_config.setdefault("start_msg_id", {"1": None, "2": None, "3": None})
-    START_FROM_MSG_ID = start_ids.get("1")
-    START_FROM_MSG_ID_2 = start_ids.get("2")
-    START_FROM_MSG_ID_3 = start_ids.get("3")
+    curr_ids = runtime_config.setdefault("current_msg_id", {"1": None, "2": None, "3": None})
+
+    # Never overwrite a live running pointer with old config during settings changes!
+    if not pipeline_is_running("1"):
+        START_FROM_MSG_ID = curr_ids.get("1") if curr_ids.get("1") is not None else start_ids.get("1")
+    if not pipeline_is_running("2"):
+        START_FROM_MSG_ID_2 = curr_ids.get("2") if curr_ids.get("2") is not None else start_ids.get("2")
+    if not pipeline_is_running("3"):
+        START_FROM_MSG_ID_3 = curr_ids.get("3") if curr_ids.get("3") is not None else start_ids.get("3")
 
 
 def set_pipeline_start_id(pipeline_key, message_id):
@@ -243,16 +266,37 @@ def set_pipeline_start_id(pipeline_key, message_id):
     runtime_config.setdefault("start_msg_id", {"1": None, "2": None, "3": None})[
         pipeline_key
     ] = message_id
+    runtime_config.setdefault("current_msg_id", {"1": None, "2": None, "3": None})[
+        pipeline_key
+    ] = message_id
     runtime_config.setdefault("last_posted_id", {"1": None, "2": None, "3": None})[
         pipeline_key
     ] = None
     save_runtime_config()
-    sync_globals_from_config()
+
+    var_map = {
+        "1": "START_FROM_MSG_ID",
+        "2": "START_FROM_MSG_ID_2",
+        "3": "START_FROM_MSG_ID_3",
+    }
+    globals()[var_map[pipeline_key]] = message_id
 
 
 def get_pipeline_start_id(pipeline_key):
     start_ids = runtime_config.get("start_msg_id", {})
     return start_ids.get(str(pipeline_key))
+
+
+def save_pipeline_progress(pipeline_key, current_id, last_posted_id=None):
+    pipeline_key = str(pipeline_key)
+    runtime_config.setdefault("current_msg_id", {"1": None, "2": None, "3": None})[
+        pipeline_key
+    ] = int(current_id)
+    if last_posted_id is not None:
+        runtime_config.setdefault("last_posted_id", {"1": None, "2": None, "3": None})[
+            pipeline_key
+        ] = int(last_posted_id)
+    save_runtime_config()
 
 
 def set_pipeline_last_posted_id(pipeline_key, message_id):
@@ -269,15 +313,20 @@ def get_pipeline_last_posted_id(pipeline_key):
 
 
 def get_pipeline_current_msg_id(pipeline_key):
+    pipeline_key = str(pipeline_key)
     var_map = {
         "1": "START_FROM_MSG_ID",
         "2": "START_FROM_MSG_ID_2",
         "3": "START_FROM_MSG_ID_3",
     }
-    var_name = var_map.get(str(pipeline_key))
-    if var_name:
-        return globals().get(var_name)
-    return None
+    var_name = var_map.get(pipeline_key)
+    live_val = globals().get(var_name) if var_name else None
+    if live_val is not None:
+        return live_val
+    curr_ids = runtime_config.get("current_msg_id", {})
+    if curr_ids.get(pipeline_key) is not None:
+        return curr_ids[pipeline_key]
+    return get_pipeline_start_id(pipeline_key)
 
 
 def pipeline_is_running(pipeline_key):
@@ -286,8 +335,13 @@ def pipeline_is_running(pipeline_key):
 
 
 def stop_pipeline(pipeline_key):
+    pipeline_key = str(pipeline_key)
     running_map = {"1": "IS_RUNNING", "2": "IS_RUNNING_2", "3": "IS_RUNNING_3"}
     globals()[running_map[pipeline_key]] = False
+    task = PIPELINE_TASKS.get(pipeline_key)
+    if task and not task.done():
+        task.cancel()
+    PIPELINE_TASKS[pipeline_key] = None
 
 
 def is_admin(user_id):
@@ -571,28 +625,18 @@ async def admin_pipeline_text(pipeline_key):
         "",
         f"Status: {running_label}",
         f"Start msg id: `{start_id if start_id is not None else 'not set'}`",
+        f"Current msg id: `{current_scan_id if current_scan_id is not None else 'not set'}`",
         f"Last posted id: `{last_posted_id if last_posted_id is not None else 'None yet'}`",
     ]
 
-    if pipeline_is_running(pk) and current_scan_id is not None:
-        lines.append(f"Current scan id: `{current_scan_id}`")
-
-    try:
-        source_id = MASTER_CHANNEL_ID if pk in ("1", "2") else MASTER_CHANNEL_ID2
-        latest_msgs = await bot.get_messages(source_id, limit=1)
-        if latest_msgs:
-            src_latest = latest_msgs[0].id
-            lines.append(f"Source latest id: `{src_latest}`")
-            ref_id = (
-                current_scan_id
-                if (current_scan_id is not None and pipeline_is_running(pk))
-                else (last_posted_id or start_id)
-            )
-            if ref_id is not None:
-                rem = max(0, src_latest - ref_id)
-                lines.append(f"Remaining msgs: `~{rem}`")
-    except Exception:
-        pass
+    source_id = MASTER_CHANNEL_ID if pk in ("1", "2") else MASTER_CHANNEL_ID2
+    src_latest = await get_source_latest_message_id(source_id)
+    if src_latest is not None:
+        lines.append(f"Source latest id: `{src_latest}`")
+        ref_id = current_scan_id if current_scan_id is not None else (last_posted_id or start_id)
+        if ref_id is not None:
+            rem = max(0, src_latest - ref_id + 1)
+            lines.append(f"Remaining in source: `~{rem}`")
 
     lines.extend(
         [
@@ -712,8 +756,16 @@ async def launch_pipeline(pipeline_key):
     running_var = kwargs["running_flag_name"]
     start_var = kwargs["start_var_name"]
 
-    if globals()[running_var]:
+    existing_task = PIPELINE_TASKS.get(pipeline_key)
+    if existing_task and not existing_task.done() and globals()[running_var]:
         return False, "Already running"
+
+    if existing_task and not existing_task.done():
+        existing_task.cancel()
+        try:
+            await existing_task
+        except (asyncio.CancelledError, Exception):
+            pass
 
     if globals()[start_var] is None:
         return False, "Set start message id first"
@@ -722,7 +774,7 @@ async def launch_pipeline(pipeline_key):
         return False, "No active channels in this set"
 
     globals()[running_var] = True
-    asyncio.create_task(run_pipeline(**kwargs))
+    PIPELINE_TASKS[pipeline_key] = asyncio.create_task(run_pipeline(**kwargs))
     return True, f"Set {pipeline_key} started 🚀"
 
 
@@ -1189,7 +1241,6 @@ async def run_pipeline(
     link_extractor,
     buttons,
 ):
-
     try:
         await _run_pipeline_loop(
             pipeline_key,
@@ -1202,6 +1253,9 @@ async def run_pipeline(
             link_extractor,
             buttons,
         )
+    except asyncio.CancelledError:
+        print(f"[{running_flag_name}] Task cancelled cleanly")
+        globals()[running_flag_name] = False
     except Exception as pipeline_error:
         print(f"{running_flag_name} crashed: {pipeline_error}")
         await report_issue(
@@ -1222,15 +1276,11 @@ async def _run_pipeline_loop(
     link_extractor,
     buttons,
 ):
-
     child_channels = pipeline_active_channels(pipeline_key)
-
     if not child_channels:
-
         await report_issue(
             f"❌ No active child channels for {running_flag_name} (Set {pipeline_key})"
         )
-
         globals()[running_flag_name] = False
         return
 
@@ -1239,13 +1289,11 @@ async def _run_pipeline_loop(
     source_miss_streak = 0
 
     while globals()[running_flag_name]:
-
         child_channels = pipeline_active_channels(pipeline_key)
         postable = [
             ch for ch in child_channels if ch not in disabled_channels
         ]
 
-        # 🔥 LIVE VALUES
         current_msg_id = globals()[start_var_name]
         interval_minutes = globals()[interval_var_name]
         post_qty = globals()[post_qty_var_name]
@@ -1254,15 +1302,6 @@ async def _run_pipeline_loop(
             await asyncio.sleep(5)
             continue
 
-        if not child_channels:
-
-            await report_issue(
-                f"❌ No active channels for {running_flag_name} (Set {pipeline_key})"
-            )
-
-            globals()[running_flag_name] = False
-            return
-
         if not postable:
             await report_issue(
                 f"🛑 All posting channels failed for {running_flag_name}"
@@ -1270,16 +1309,33 @@ async def _run_pipeline_loop(
             globals()[running_flag_name] = False
             return
 
-        target = postable[child_index % len(postable)]
+        # Check latest post in source channel
+        latest_source_id = await get_source_latest_message_id(source_channel_id)
+        if latest_source_id is not None and current_msg_id > latest_source_id:
+            print(
+                f"[{running_flag_name}] At msg {current_msg_id} > source latest {latest_source_id}. Waiting for new posts..."
+            )
+            total_sleep = max(1, interval_minutes) * 60
+            for _ in range(total_sleep):
+                if not globals()[running_flag_name]:
+                    break
+                await asyncio.sleep(1)
+            continue
 
+        target = postable[child_index % len(postable)]
         sent_count = 0
 
         while sent_count < post_qty and globals()[running_flag_name]:
+            if latest_source_id is not None and current_msg_id > latest_source_id:
+                latest_source_id = await get_source_latest_message_id(source_channel_id)
+                if latest_source_id is not None and current_msg_id > latest_source_id:
+                    print(
+                        f"[{running_flag_name}] Reached end of source posts (latest: {latest_source_id}). Waiting for new posts..."
+                    )
+                    break
 
             send_started = False
-
             try:
-
                 msg = await fetch_source_message(
                     source_channel_id,
                     current_msg_id,
@@ -1289,7 +1345,9 @@ async def _run_pipeline_loop(
                     source_miss_streak += 1
                     current_msg_id += 1
                     globals()[start_var_name] = current_msg_id
-                    if source_miss_streak >= SOURCE_ID_MISS_LIMIT:
+                    save_pipeline_progress(pipeline_key, current_msg_id)
+
+                    if latest_source_id is None and source_miss_streak >= SOURCE_ID_MISS_LIMIT:
                         await notify_source_id_exhausted(
                             running_flag_name,
                             start_var_name,
@@ -1297,34 +1355,33 @@ async def _run_pipeline_loop(
                             source_channel_id,
                         )
                         return
+
+                    await asyncio.sleep(0.05)
                     continue
 
                 source_miss_streak = 0
-
                 text = msg.text or msg.caption
 
                 if not text:
                     current_msg_id += 1
                     globals()[start_var_name] = current_msg_id
+                    save_pipeline_progress(pipeline_key, current_msg_id)
                     continue
 
                 links = link_extractor(text)
-
                 if not links:
                     current_msg_id += 1
                     globals()[start_var_name] = current_msg_id
+                    save_pipeline_progress(pipeline_key, current_msg_id)
                     continue
 
                 links_block = "\n\n➡️".join(links)
-
                 new_text = f"""🎬 Vdo 😍** 🔗🔗यह रहा वीडियो लिंक 👇**
 
 {links_block}
 
 {footer_text}
 """
-
-                # Pipeline-specific static button.
                 selected_button = buttons
 
                 # -------- SEND --------
@@ -1337,22 +1394,18 @@ async def _run_pipeline_loop(
                 )
 
                 sent_count += 1
-                set_pipeline_last_posted_id(pipeline_key, current_msg_id)
+                posted_id = current_msg_id
                 current_msg_id += 1
-
-                # 🔥 LIVE UPDATE START ID
                 globals()[start_var_name] = current_msg_id
+                save_pipeline_progress(pipeline_key, current_msg_id, last_posted_id=posted_id)
 
                 await asyncio.sleep(1)
 
             except FloodWaitError as e:
-
                 print(f"FloodWait {e.seconds}s")
-
                 await asyncio.sleep(e.seconds)
 
             except CHANNEL_POST_FAILURES as e:
-
                 await mark_posting_channel_failed(
                     pipeline_key,
                     target,
@@ -1372,11 +1425,9 @@ async def _run_pipeline_loop(
                 return
 
             except Exception as e:
-
                 print(
                     f"Error msg {current_msg_id} → {target}: {e}"
                 )
-
                 if send_started:
                     await mark_posting_channel_failed(
                         pipeline_key,
@@ -1391,12 +1442,11 @@ async def _run_pipeline_loop(
                     f"⚠️ Error on source msg `{current_msg_id}` (not sent)\n"
                     f"{type(e).__name__}: {e}"
                 )
-
                 current_msg_id += 1
                 globals()[start_var_name] = current_msg_id
+                save_pipeline_progress(pipeline_key, current_msg_id)
 
         # -------- ROTATE CHANNEL --------
-
         child_index += 1
         postable_after = [
             ch
@@ -1407,13 +1457,10 @@ async def _run_pipeline_loop(
             child_index %= len(postable_after)
 
         # -------- ALL DEAD --------
-
         if postable_after and len(disabled_channels) >= len(child_channels):
-
             await report_issue(
                 f"🛑 All channels disabled for {running_flag_name}"
             )
-
             globals()[running_flag_name] = False
             break
 
@@ -1421,14 +1468,10 @@ async def _run_pipeline_loop(
             f"[{running_flag_name}] Waiting {interval_minutes} mins..."
         )
 
-        # 🔥 LIVE INTERVAL SLEEP
-        total_sleep = interval_minutes * 60
-
+        total_sleep = max(1, interval_minutes) * 60
         for _ in range(total_sleep):
-
             if not globals()[running_flag_name]:
                 break
-
             await asyncio.sleep(1)
 
     print(f"{running_flag_name} stopped")
