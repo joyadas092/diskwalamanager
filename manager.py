@@ -690,22 +690,22 @@ TERABOX_BUTTON = [
 FOOTER_1 = """<b>🤔 How to Open Links? | लिंक कैसे खोलें 👇</b>
 <b><i><a href="https://t.me/howdisk/2">📖 View Tutorial</a></i></b>
 
-😉<b>Join Backup Must 👇</b>
-  t.me/+zSaZL31c2EM5N2E9
+😉<b>Join Flipkart Big Billion Offers 👇</b>
+  t.me/+Eco4og2sRdJkNzNl
 """
 
 FOOTER_2 = """<b>🤔 How to Open Links? | लिंक कैसे खोलें 👇</b>
 <b><i><a href="https://t.me/howdisk/2">📖 View Tutorial</a></i></b>
 
-😉<b>Join Backup Must 👇</b>
-  t.me/+zSaZL31c2EM5N2E9
+😉<b>Join Flipkart Big Billion Offers 👇</b>
+  t.me/+2IxPmIwTFrhlYmI1
 """
 
 FOOTER_3 ="""<b>🤔 How to Open Links? | लिंक कैसे खोलें 👇</b>
 <b><i><a href="https://t.me/howdisk/2">📖 View Tutorial</a></i></b>
 
-😉<b>Join Backup Must 👇</b>
-  t.me/+zSaZL31c2EM5N2E9
+😉<b>Join Flipkart Big Billion Offers 👇</b>
+  t.me/+2IxPmIwTFrhlYmI1
 """
 
 
