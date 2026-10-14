@@ -62,9 +62,9 @@ CHILD_CHANNEL_IDS_2 = [
 # -------- PIPELINE 3 TERABOX CHANNELS --------
 
 CHILD_CHANNEL_IDS_3 = [
+    -1004325018644,
     -1004384690409,
     -1004357248388,
-    -1003882375411,
     -1003786388714
 ]
 
@@ -91,20 +91,20 @@ DEFAULT_RUNTIME_CONFIG = {
 
 START_FROM_MSG_ID = None
 INTERVAL_MINUTES = 30
-POST_QTY = 1
+POST_QTY = 2
 IS_RUNNING = False
 
 # -------- PIPELINE 2 --------
 
 START_FROM_MSG_ID_2 = None
 INTERVAL_MINUTES_2 = 30
-POST_QTY_2 = 1
+POST_QTY_2 = 2
 IS_RUNNING_2 = False
 
 # -------- PIPELINE 3 TERABOX --------
 
 START_FROM_MSG_ID_3 = None
-INTERVAL_MINUTES_3 = 60
+INTERVAL_MINUTES_3 = 45
 POST_QTY_3 = 2
 IS_RUNNING_3 = False
 
@@ -690,22 +690,22 @@ TERABOX_BUTTON = [
 FOOTER_1 = """<b>🤔 How to Open Links? | लिंक कैसे खोलें 👇</b>
 <b><i><a href="https://t.me/howdisk/2">📖 View Tutorial</a></i></b>
 
-😉<b>Join Flipkart Big Billion Offers 👇</b>
-  t.me/+Eco4og2sRdJkNzNl
+😉<b>Join Backup 👇</b>
+  t.me/+zSaZL31c2EM5N2E9
 """
 
 FOOTER_2 = """<b>🤔 How to Open Links? | लिंक कैसे खोलें 👇</b>
 <b><i><a href="https://t.me/howdisk/2">📖 View Tutorial</a></i></b>
 
-😉<b>Join Flipkart Big Billion Offers 👇</b>
-  t.me/+2IxPmIwTFrhlYmI1
+😉<b>Join Backup 👇</b>
+  t.me/+zSaZL31c2EM5N2E9
 """
 
 FOOTER_3 ="""<b>🤔 How to Open Links? | लिंक कैसे खोलें 👇</b>
 <b><i><a href="https://t.me/howdisk/2">📖 View Tutorial</a></i></b>
 
-😉<b>Join Flipkart Big Billion Offers 👇</b>
-  t.me/+2IxPmIwTFrhlYmI1
+😉<b>Join Backup 👇</b>
+  t.me/+zSaZL31c2EM5N2E9
 """
 
 
