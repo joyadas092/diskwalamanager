@@ -673,15 +673,15 @@ load_runtime_config()
 
 MAIN_BUTTON = [
     [Button.url(
-        "🔞 Join and See More 😉",
-        "https://t.me/Viral_diskwala_bot?start=1"
+        "🔞 Watch Fresh Videos 😉",
+        "https://t.me/diskwalafun_bot?start=1"
     )]
 ]
 
 TERABOX_BUTTON = [
     [Button.url(
-        "🥵 See Other Channels ⏬",
-        "https://t.me/Viral_diskwala_bot?start=1"
+        "🥵 New Videos ⏬",
+        "https://t.me/diskwalafun_bot?start=1"
     )]
 ]
 
