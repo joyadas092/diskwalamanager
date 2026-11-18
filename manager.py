@@ -44,8 +44,8 @@ CHILD_CHANNEL_IDS = [
     -1003440216101,
     -1003509258780,
     -1003610491355,
-    -1003471521632,
-    -1003981620549
+    -1003981620549,
+    -1004203815831
 ]
 
 # -------- PIPELINE 2 CHANNELS --------
@@ -65,7 +65,8 @@ CHILD_CHANNEL_IDS_3 = [
     -1004325018644,
     -1004384690409,
     -1004357248388,
-    -1003786388714
+    -1003786388714,
+    -1003752049043
 ]
 
 CONFIG_PATH = Path(__file__).resolve().parent / "bot_runtime_config.json"
@@ -673,15 +674,15 @@ load_runtime_config()
 
 MAIN_BUTTON = [
     [Button.url(
-        "🔞 Watch Fresh Videos 😉",
-        "https://t.me/diskwalafun_bot?start=1"
+        "🔞 Fresh Videos  😉",
+        "https://t.me/viraldiskwala_bot?start=1"
     )]
 ]
 
 TERABOX_BUTTON = [
     [Button.url(
-        "🥵 New Videos ⏬",
-        "https://t.me/diskwalafun_bot?start=1"
+        "🥵Don't Click⏬",
+        "https://t.me/viraldiskwala_bot?start=1"
     )]
 ]
 
